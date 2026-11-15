@@ -108,5 +108,5 @@ def test_health_is_not_readiness(client):
 def test_disabled_capabilities_do_not_claim_success(client):
     sign_in(client)
     flags = client.get("/api/v1/capabilities").json()
-    assert not flags["remote_ai"] and not flags["chat"] and flags["memories"]
+    assert not flags["remote_ai"] and flags["chat"] and flags["memories"]
     assert client.get("/api/v1/memories").json() == []

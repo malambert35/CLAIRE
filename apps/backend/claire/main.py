@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from .chat import chat_router
 from .config import Settings
 from .db import Audit, Family, User
 from .identity import authenticate, login
@@ -22,7 +23,7 @@ class Credentials(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 
-def create_app(settings: Settings | None = None):
+def create_app(settings: Settings | None = None, provider=None):
     settings = settings or Settings()
     engine = create_engine(settings.db_url(), pool_pre_ping=True)
 
@@ -74,7 +75,7 @@ def create_app(settings: Settings | None = None):
         try:
             with engine.connect() as connection:
                 revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-                if revision != "0002":
+                if revision != "0003":
                     raise ValueError("Migration required")
             return {"status": "ready"}
         except (SQLAlchemyError, ValueError):
@@ -133,12 +134,13 @@ def create_app(settings: Settings | None = None):
             "identity": True,
             "family_members": True,
             "memories": True,
-            "chat": False,
+            "chat": True,
             "remote_ai": False,
             "integrations": False,
         }
 
     app.include_router(memory_router(engine, settings))
+    app.include_router(chat_router(engine, settings, provider))
     if settings.static_dir.is_dir():
         app.mount("/", StaticFiles(directory=settings.static_dir, html=True), name="frontend")
     return app

@@ -16,6 +16,7 @@ import { api, type Identity, type Member } from "./api";
 import { Login } from "./Login";
 import { translations } from "./i18n";
 import { Memories } from "./Memories";
+import { Chat } from "./Chat";
 const icons = [
   MessageCircle,
   BookOpen,
@@ -28,7 +29,7 @@ const icons = [
   CircleCheck,
   Settings,
 ];
-const availableSections = new Set([1, 2, 5]);
+const availableSections = new Set([0, 1, 2, 5]);
 
 export default function App() {
   const [lang, setLang] = useState<"en" | "fr">("en");
@@ -132,7 +133,9 @@ export default function App() {
             <h1>{t.nav[page]}</h1>
           </div>
           {error && <p role="alert">{error}</p>}
-          {page === 1 || page === 2 ? (
+          {page === 0 ? (
+            <Chat key={user.id} user={user} lang={lang} />
+          ) : page === 1 || page === 2 ? (
             <Memories
               key={`${user.id}-${page}`}
               user={user}

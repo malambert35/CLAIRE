@@ -11,6 +11,8 @@ x-app: &app
     CLAIRE_DATABASE_URL_FILE: /run/secrets/database_url
     CLAIRE_ORIGIN: ${CLAIRE_ORIGIN:-https://localhost}
     CLAIRE_SECURE_COOKIES: ${CLAIRE_SECURE_COOKIES:-true}
+    CLAIRE_LLM_BASE_URL: ${CLAIRE_LLM_BASE_URL:-http://claire-ollama:11434}
+    CLAIRE_LLM_MODEL: ${CLAIRE_LLM_MODEL:-qwen3:8b}
   secrets: [database_url]
   volumes:
     - ${CLAIRE_DATA_PATH:-./data/archive}:/data
@@ -64,7 +66,7 @@ services:
     depends_on:
       migrate: {condition: service_completed_successfully}
   claire-ollama:
-    image: ollama/ollama:0.6.2
+    image: ollama/ollama:0.40.3
     profiles: [local-ai]
     volumes: ["${CLAIRE_MODELS_PATH:-./data/models}:/root/.ollama"]
     networks: [backend]

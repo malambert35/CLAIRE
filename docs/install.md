@@ -4,7 +4,7 @@ This foundation is for evaluation with synthetic data. Production acceptance is 
 
 ## Host preparation
 
-Install Docker Engine and Compose v2 from Docker's supported packages on Ubuntu/Debian, or use Unraid's Docker service and Compose management. No Docker socket is mounted in CLAIRE. CPU-only identity operation needs approximately 2 cores and 4 GB RAM. AI capacity is model-dependent and not yet integrated.
+Install Docker Engine and Compose v2 from Docker's supported packages on Ubuntu/Debian, or use Unraid's Docker service and Compose management. No Docker socket is mounted in CLAIRE. CPU-only identity operation needs approximately 2 cores and 4 GB RAM. Local Ollama chat capacity is model-dependent.
 
 Copy `.env.example` to `.env`. On Unraid set paths under `/mnt/user/appdata/claire`: `archive`, `postgres`, `models`, `secrets`. Keep PostgreSQL on a suitable local filesystem/cache pool and use consistent backups; parity is not backup. App UID/GID defaults to 10001:10001; changing PUID/PGID changes the container identity, not ownership of existing files. Create archive directories and assign them to that numeric identity. PostgreSQL manages its own volume ownership; do not recursively chown it to the app user.
 
@@ -45,10 +45,10 @@ Open `http://localhost:8000` exactly. Secure cookies intentionally do not work o
 
 ## Optional services
 
-`--profile local-ai` starts a pinned Ollama service without GPU requirements. The foundation does not call it yet. Voice and backup profiles will be introduced with implemented services, not empty containers. GPU passthrough/NVIDIA Unraid instructions will accompany validated AI support; do not add privileged mode.
+`--profile local-ai` starts a pinned Ollama service without GPU requirements. See [local chat setup](chat.md) to install a model and enable real inference. Voice and backup profiles will be introduced with implemented services, not empty containers. GPU passthrough/NVIDIA Unraid instructions will accompany validated AI support; do not add privileged mode.
 
 ## Upgrade
 
-The memory update adds migration `0002` without deleting accounts or sessions. Run `uv run alembic upgrade head` in your configured local environment (or use `scripts/start-local.ps1` on Windows). Docker: stop web/worker, rebuild, run `docker compose run --rm migrate`, then start web/worker. New installs grant memory catalogue access through runtime-role.sql; the migration grants access to an existing `claire_runtime` role. Restart the application after migration. Local archives default to `data/archive`; Docker sets `CLAIRE_DATA_DIR=/data` explicitly.
+The memory and chat updates add migrations `0002` and `0003` without deleting accounts, sessions or memories. Run `uv run alembic upgrade head` in your configured local environment (or use `scripts/start-local.ps1` on Windows). Docker: stop web/worker, rebuild, run `docker compose run --rm migrate`, then start web/worker. New installs grant memory catalogue access through runtime-role.sql; the migration grants access to an existing `claire_runtime` role. Restart the application after migration. Local archives default to `data/archive`; Docker sets `CLAIRE_DATA_DIR=/data` explicitly.
 
 Back up the database and files together before upgrades. Stop writes, run owner-only Alembic migrations, then start web/worker roles. Never run destructive downgrade against real data without a verified restore. The initial downgrade intentionally drops identity tables and is only exercised on disposable test databases. Reassess image pins and run scans before deployment.

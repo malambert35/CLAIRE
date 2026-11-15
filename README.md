@@ -6,7 +6,7 @@ A family-owned knowledge preservation platform with a replaceable AI layer.
 
 The memory workspace creates and edits real Markdown/JSON archives with UUID provenance, immutable revisions, private/family visibility, source attribution, revision history, recoverable deletion, title search and a date-sorted view. Owner-only history preserves previous private versions when the current story is shared. PostgreSQL row-level policies and application checks enforce access. An offline recovery command reconciles the catalogue after an interrupted write.
 
-**Status: 0.1.0 under development, not production-ready.** Identity and the memory workflow are implemented and tested. AI chat, semantic retrieval, document ingestion, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
+**Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow and streaming local Ollama chat are implemented and tested. Semantic retrieval, document ingestion, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
 
 ## Windows local start
 
@@ -17,6 +17,8 @@ Stop a previous local server with Ctrl+C, then run from the repository:
 ```
 
 This migrates the existing `data/dev.db`, builds the interface and starts http://localhost:8000. Existing accounts remain intact. To create your first account, add `-Email you@example.test -FamilyName 'My family'`; do not pass `-Email` again for an existing account. The local script uses SQLite for evaluation; Docker uses PostgreSQL.
+
+Local chat defaults to Ollama at `http://127.0.0.1:11434` with `qwen3:8b`. Start Ollama and install a model first. The interface lists installed local models. Conversations are private and saved; memories are not sent to the model. See [chat setup and limits](docs/chat.md).
 
 Read the [architecture and six-phase checklist](docs/architecture.md), [installation guide](docs/install.md), [security model](SECURITY.md), and [recovery plan](docs/recovery.md).
 

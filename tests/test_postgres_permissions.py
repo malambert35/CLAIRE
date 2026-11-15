@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from claire.db import Family, Memory, User, now
+from claire.db import Conversation, Family, Memory, Message, User, now
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -57,11 +57,27 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
                 )
             )
         family_id, alice_id, bob_id = family.id, alice.id, bob.id
+        conversation = Conversation(owner_id=alice_id, family_id=family_id, title="Private chat")
+        db.add(conversation)
+        db.flush()
+        conversation_id = conversation.id
+        db.add(
+            Message(
+                conversation_id=conversation.id,
+                owner_id=alice_id,
+                family_id=family_id,
+                role="user",
+                content="Private transcript",
+                status="complete",
+            )
+        )
         db.commit()
     with engine.begin() as connection:
         connection.execute(text(f'CREATE ROLE "{role}" NOLOGIN NOSUPERUSER NOBYPASSRLS'))
         connection.execute(text(f'GRANT USAGE ON SCHEMA public TO "{role}"'))
-        connection.execute(text(f'GRANT SELECT, INSERT, UPDATE ON memories TO "{role}"'))
+        connection.execute(
+            text(f'GRANT SELECT, INSERT, UPDATE ON memories, conversations, messages TO "{role}"')
+        )
     try:
         with engine.begin() as connection:
             connection.execute(text(f'SET LOCAL ROLE "{role}"'))
@@ -74,6 +90,8 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
                 {"user": bob_id, "family": family_id},
             )
             assert connection.scalars(text("SELECT title FROM memories")).all() == ["shared"]
+            assert connection.scalar(text("SELECT count(*) FROM conversations")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM messages")) == 0
             assert (
                 connection.execute(text("UPDATE memories SET title='forged' WHERE title='shared'")).rowcount
                 == 0
@@ -94,9 +112,35 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
                 ),
                 {"id": str(uuid4()), "family": family_id, "owner": alice_id},
             )
+        with pytest.raises(DBAPIError), engine.begin() as connection:
+            connection.execute(text(f'SET LOCAL ROLE "{role}"'))
+            connection.execute(
+                text(
+                    "SELECT set_config('claire.user_id', :user, true), "
+                    "set_config('claire.family_id', :family, true)"
+                ),
+                {"user": bob_id, "family": family_id},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO messages (id,conversation_id,owner_id,family_id,role,content,status,created_at) "
+                    "VALUES (:id,:conversation,:owner,:family,'user','forged','complete',now())"
+                ),
+                {"id": str(uuid4()), "conversation": conversation_id, "owner": bob_id, "family": family_id},
+            )
+        with engine.begin() as connection:
+            connection.execute(text(f'SET LOCAL ROLE "{role}"'))
+            connection.execute(
+                text(
+                    "SELECT set_config('claire.user_id', :user, true), "
+                    "set_config('claire.family_id', :family, true)"
+                ),
+                {"user": alice_id, "family": family_id},
+            )
+            assert connection.scalar(text("SELECT content FROM messages")) == "Private transcript"
     finally:
         with engine.begin() as connection:
-            connection.execute(text(f'REVOKE ALL ON memories FROM "{role}"'))
+            connection.execute(text(f'REVOKE ALL ON memories, conversations, messages FROM "{role}"'))
             connection.execute(text(f'REVOKE USAGE ON SCHEMA public FROM "{role}"'))
             connection.execute(text(f'DROP ROLE "{role}"'))
         engine.dispose()

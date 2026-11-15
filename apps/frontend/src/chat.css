@@ -1,0 +1,120 @@
+.chat-panel {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 28px;
+  flex: 1;
+  padding: 24px 0 32px;
+}
+.chat-history {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  padding-right: 20px;
+}
+.chat-main {
+  min-width: 0;
+}
+.chat-history nav {
+  border: 0;
+  display: grid;
+  max-height: 65vh;
+  overflow: auto;
+}
+.chat-history nav button {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.chat-provider {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.chat-provider strong {
+  color: var(--accent);
+  font-size: 14px;
+}
+.chat-provider label {
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.chat-context,
+.chat-main > small {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.chat-messages {
+  min-height: 300px;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 16px 10px 16px 0;
+}
+.chat-messages h2 {
+  font-size: 30px;
+  padding: 40px 0;
+}
+.chat-message {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.chat-message > strong {
+  color: var(--accent);
+  font-size: 14px;
+}
+.chat-message.user {
+  padding-left: 18px;
+  border-left: 2px solid var(--line);
+}
+.chat-message .markdown {
+  padding: 0;
+}
+.chat-composer {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 12px;
+}
+.chat-composer label {
+  display: grid;
+  gap: 10px;
+}
+.chat-composer textarea {
+  font: inherit;
+  padding: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: 100%;
+}
+.chat-composer > div {
+  display: flex;
+  justify-content: flex-end;
+}
+@media (max-width: 1000px) {
+  .chat-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chat-history {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 16px;
+  }
+  .chat-history nav {
+    display: flex;
+    max-height: 150px;
+  }
+  .chat-history nav button {
+    min-width: 150px;
+  }
+  .chat-provider label {
+    flex-wrap: wrap;
+  }
+  .chat-provider select {
+    max-width: 210px;
+  }
+}
