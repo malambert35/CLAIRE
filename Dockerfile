@@ -5,13 +5,13 @@ RUN npm ci
 COPY apps/frontend/ ./
 RUN npm run build
 
-FROM python:3.12.12-slim-bookworm AS wheels
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS wheels
 WORKDIR /build
 COPY pyproject.toml uv.lock ./
 COPY apps/backend/claire ./apps/backend/claire
 RUN pip install --no-cache-dir uv==0.9.5 && uv export --quiet --frozen --no-dev --no-emit-project --format requirements-txt -o requirements.txt && pip wheel --wheel-dir /wheels -r requirements.txt && pip wheel --no-deps --wheel-dir /wheels .
 
-FROM python:3.12.12-slim-bookworm
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=wheels /wheels /wheels

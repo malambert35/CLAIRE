@@ -51,11 +51,13 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
       - uses: anchore/sbom-action@v0.24.3
+        if: always()
         with:
           image: claire:ci
           format: spdx-json
           output-file: claire.spdx.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: sbom
           path: claire.spdx.json
