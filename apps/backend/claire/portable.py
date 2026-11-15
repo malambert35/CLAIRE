@@ -24,7 +24,8 @@ dans un emplacement protege. Le ZIP n'est pas chiffre.
 Verify / Verifier: python -m claire.portable path/to/memory.zip
 Read Markdown and JSON with any text editor. No model is needed.
 This is one memory, not a complete database backup. It contains source references,
-not copies of external source documents. Import and full restore are not included.
+not copies of external source documents. CLAIRE can import a new private copy;
+this package alone is not a full server restore.
 """
 
 

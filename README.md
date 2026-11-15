@@ -8,6 +8,8 @@ The memory workspace creates and edits real Markdown/JSON archives with UUID pro
 
 Owners can download a memory and all its revisions as a portable ZIP with Markdown, JSON, schema and checksum manifest. Verify it offline with `uv run python -m claire.portable path/to/memory.zip`. See the [export and recovery guide](docs/recovery.md).
 
+Import a CLAIRE ZIP from the memory list with verification, preview and explicit confirmation. It creates a new private copy with revision history and origin references; it never overwrites an existing memory or restores old sharing grants.
+
 **Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow and streaming local Ollama chat are implemented and tested. Semantic retrieval, document ingestion, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
 
 ## Windows local start

@@ -13,6 +13,7 @@ from .chat import chat_router
 from .config import Settings
 from .db import Audit, Family, User
 from .identity import authenticate, login
+from .imports import UPLOAD_LIMIT, import_router
 from .memories import memory_router
 
 logger = logging.getLogger("claire")
@@ -45,7 +46,12 @@ def create_app(settings: Settings | None = None, provider=None):
                 length = int(request.headers.get("content-length", "0"))
             except ValueError:
                 return Response("Invalid content length", status_code=400)
-            if length > 16384:
+            limit = (
+                UPLOAD_LIMIT
+                if request.url.path in {"/api/v1/memory-import/preview", "/api/v1/memory-import/confirm"}
+                else 16384
+            )
+            if length > limit:
                 return Response("Request too large", status_code=413)
         response = await call_next(request)
         response.headers.update(
@@ -140,6 +146,7 @@ def create_app(settings: Settings | None = None, provider=None):
         }
 
     app.include_router(memory_router(engine, settings))
+    app.include_router(import_router(engine, settings))
     app.include_router(chat_router(engine, settings, provider))
     if settings.static_dir.is_dir():
         app.mount("/", StaticFiles(directory=settings.static_dir, html=True), name="frontend")

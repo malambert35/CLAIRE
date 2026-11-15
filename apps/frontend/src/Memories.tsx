@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { api, type Identity } from "./api";
 import { memoryText } from "./memoryText";
 import "./memories.css";
+import { ImportMemory } from "./ImportMemory";
 
 type Source = {
   id: string;
@@ -354,7 +355,9 @@ export function Memories({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/v1/memories/${selected.id}/export`, { credentials: "same-origin" });
+      const response = await fetch(`/api/v1/memories/${selected.id}/export`, {
+        credentials: "same-origin",
+      });
       if (!response.ok) throw new Error(t.exportError);
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
@@ -396,7 +399,9 @@ export function Memories({
           <Story memory={selected} t={t} lang={lang} />
           {selected.owner_id === user.id && (
             <div>
-              <button disabled={busy} onClick={downloadMemory}>{t.export}</button>
+              <button disabled={busy} onClick={downloadMemory}>
+                {t.export}
+              </button>
               <p>{t.exportNote}</p>
             </div>
           )}
@@ -515,6 +520,19 @@ export function Memories({
               </button>
             )}
           </div>
+          {canCreate && (
+            <ImportMemory
+              user={user}
+              lang={lang}
+              onImported={async (id) => {
+                setSelected(await api<Memory>(`/memories/${id}`));
+                setHistory(null);
+                setAction(null);
+                setNotice("saved");
+                setReload((value) => value + 1);
+              }}
+            />
+          )}
           <form
             className="memory-search"
             onSubmit={(event) => {

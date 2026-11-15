@@ -16,7 +16,15 @@ uv run python -m claire.portable 'C:\path\to\claire-memory-UUID.zip'
 
 The command validates file inventory, checksums, identities and revision continuity. Exit status is nonzero on failure. Checksums detect corruption but do not authenticate the author. A text editor can read the extracted Markdown and JSON without CLAIRE or a model.
 
-Web exports are limited to 500 revisions and 32 MiB of uncompressed content per memory. An export fails if the source changes during preparation. This is a single-memory preservation package, not a full household backup or a working import/restore system.
+Web exports are limited to 500 revisions and 32 MiB of uncompressed content per memory. An export fails if the source changes during preparation. This is a single-memory preservation package, not a full household backup.
+
+## Import a private copy
+
+In Family Memories, choose **Import memory (.zip)**, select a CLAIRE export, then **Verify and preview**. Review the title, revision count and latest text before confirming **Create private copy**. The browser sends the same package again with its preview checksum; the server validates every revision again. Uploads are limited to 34 MiB and actual streamed bytes are counted. Configure your reverse proxy to allow 34 MiB on `/api/v1/memory-import/preview` and `/api/v1/memory-import/confirm` only; retain the normal limit elsewhere.
+
+An import creates a new UUID owned by the signed-in user. Original text, dates, source references and revision sequence are preserved, while all imported revisions become private. Original memory/family/owner/contributor identifiers, visibility and deletion status are recorded as contextual source references. Previous reader grants are not activated. Checksums do not establish authorship or verify the truth of imported claims. Only import files you are authorized to retain; an export is a copy that later revocation cannot recall.
+
+A deleted latest revision is retained and followed by an explicit restoration revision. The existing memory is never overwritten, including when importing your own export. Each confirmed import creates another copy: after a connection failure, inspect the memory list before retrying. The complete file tree is staged before publication; if database commit fails after publication, operator catalogue reconciliation may be needed. This does not replace full database/identity restoration or encrypted backups.
 
 Authoritative future layout:
 

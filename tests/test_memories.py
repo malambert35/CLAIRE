@@ -75,6 +75,50 @@ def draft(**changes):
     }
 
 
+def test_import_preview_confirmation_private_copy_and_history(household, tmp_path):
+    clients, _ = household
+    alice, bob = clients["alice"], clients["bob"]
+    original = alice.post("/api/v1/memories", json=draft()).json()
+    path = f"/api/v1/memories/{original['id']}"
+    alice.put(path, json=draft(content="Nouveau récit.", visibility="family", expected_revision=1))
+    alice.post(path + "/delete", json={"expected_revision": 2, "confirmed": True})
+    package = alice.get(path + "/export").content
+    headers = {"content-type": "application/zip"}
+    preview = alice.post("/api/v1/memory-import/preview", content=package, headers=headers)
+    assert preview.status_code == 200 and preview.json()["revisions"] == 3
+    assert alice.get("/api/v1/memories").json() == []
+    assert alice.post("/api/v1/memory-import/confirm", content=package, headers=headers).status_code == 422
+    headers["x-import-confirm"] = preview.json()["sha256"]
+    response = alice.post("/api/v1/memory-import/confirm", content=package, headers=headers)
+    assert response.status_code == 201
+    imported_path = f"/api/v1/memories/{response.json()['id']}"
+    assert response.json()["id"] != original["id"]
+    imported = alice.get(imported_path).json()
+    assert imported["visibility"] == "private" and not imported["deleted"]
+    assert imported["content"] == "Nouveau récit." and imported["revision"] == 4
+    assert bob.get(imported_path).status_code == 404
+    history = alice.get(imported_path + "/history").json()
+    assert history[-1]["content"] == original["content"]
+    assert all(item["visibility"] == "private" for item in history)
+    assert original["id"] in history[-1]["sources"][-1]["reference"]
+    assert alice.get(path).json()["deleted"]  # No overwrite of original.
+    exported = tmp_path / "reexport.zip"
+    exported.write_bytes(alice.get(imported_path + "/export").content)
+    assert verify_package(exported)["revision"] == 4
+    for name in ("reader",):
+        assert (
+            clients[name].post("/api/v1/memory-import/preview", content=package, headers=headers).status_code
+            == 403
+        )
+    assert alice.post("/api/v1/memory-import/preview", content=b"bad zip", headers=headers).status_code == 422
+    assert (
+        alice.post(
+            "/api/v1/memory-import/preview", content=package, headers={**headers, "x-csrf-token": "wrong"}
+        ).status_code
+        == 403
+    )
+
+
 def test_portable_export_preserves_revisions_and_is_owner_only(household, tmp_path):
     clients, _ = household
     alice = clients["alice"]

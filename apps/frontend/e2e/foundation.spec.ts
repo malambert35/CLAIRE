@@ -128,6 +128,17 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     path: "../../data/memory-mobile.png",
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Retour aux souvenirs", exact: true }).click();
+  await page.getByRole("button", { name: "Importer un souvenir (.zip)", exact: true }).click();
+  await page.getByLabel("Fichier ZIP CLAIRE").setInputFiles("../../data/memory-export-smoke.zip");
+  await page.getByRole("button", { name: "Vérifier et prévisualiser", exact: true }).click();
+  await expect(page.getByText("2 versions · copie privée", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Créer la copie privée", exact: true })).toBeDisabled();
+  await page.getByRole("checkbox", { name: /Je confirme la création/ }).check();
+  await page.screenshot({ path: "../../data/import-preview-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Créer la copie privée", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Souvenir enregistré dans les archives.");
+  await expect(page.locator(".markdown strong")).toHaveText("1963");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

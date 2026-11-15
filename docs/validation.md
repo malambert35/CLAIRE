@@ -1,5 +1,9 @@
 # Validation record
 
+## Portable memory import
+
+25 backend tests pass with SQLite, with PostgreSQL/live-model tests skipped. Import checks cover preview without writes, required confirmation, private ownership, preserved revisions, original remaining untouched, deleted-memory restoration, re-export verification, role/CSRF denial and invalid ZIP rejection. Two Playwright workflows pass, including export → upload → preview → confirm → rendered copy in French at 390px. The preview screenshot was inspected and the production frontend build passes. Full host restore and PostgreSQL execution are not claimed by this local run.
+
 ## Portable memory export
 
 24 backend tests pass with SQLite (two opt-in PostgreSQL/live-model tests skipped). Export tests cover owner-only access, another family's denial, original private revisions, deleted history, Unicode preservation, tampering and unexpected file paths. Two Playwright Chromium workflows pass, including a real ZIP download and French mobile export control. The downloaded two-revision ZIP passes `python -m claire.portable`; mobile screenshot inspected at 390px with no horizontal overflow. Production frontend build and Ruff pass. Browser plugin unavailable; existing Playwright workflow used. PostgreSQL rerun was unavailable because Docker Desktop's Linux engine was stopped. Full restore/import is not claimed.
