@@ -21,7 +21,7 @@ const copy = {
     intro: "What would you like to talk about?",
     local: "Ollama · local inference",
     context:
-      "General model knowledge and this conversation only. Family archives are not sent to the model.",
+      "Local keyword search uses up to three accessible memories. Mention a name or detail from the memory. Selected excerpts are sent to your local Ollama.",
     privacy: "Private conversation. To preserve a memory, use Family Memories.",
     thinking: "CLAIRE is responding…",
     interrupted: "This response is incomplete.",
@@ -42,7 +42,7 @@ const copy = {
     intro: "De quoi souhaitez-vous parler ?",
     local: "Ollama · traitement local",
     context:
-      "Connaissances générales du modèle et cette conversation uniquement. Les archives familiales ne sont pas envoyées au modèle.",
+      "La recherche locale par mots-clés consulte jusqu’à trois souvenirs autorisés. Mentionnez un nom ou un détail du souvenir. Les extraits sélectionnés sont transmis à votre Ollama local.",
     privacy:
       "Conversation privée. Pour conserver un souvenir, utilisez Souvenirs de famille.",
     thinking: "CLAIRE répond…",

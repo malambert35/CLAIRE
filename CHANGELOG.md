@@ -2,6 +2,8 @@
 
 ## 0.1.0 — unreleased
 
+- Chat now retrieves current authorized memory excerpts by keyword, without an indexing delay; local inference verified against a newly saved synthetic memory.
+
 - Real local Ollama streaming chat, installed-model selection, private persisted history and cancellation.
 - Owner-only conversation/message RLS, bounded context and explicit failure states; real-provider browser checks.
 

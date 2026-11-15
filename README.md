@@ -18,7 +18,7 @@ Stop a previous local server with Ctrl+C, then run from the repository:
 
 This migrates the existing `data/dev.db`, builds the interface and starts http://localhost:8000. Existing accounts remain intact. To create your first account, add `-Email you@example.test -FamilyName 'My family'`; do not pass `-Email` again for an existing account. The local script uses SQLite for evaluation; Docker uses PostgreSQL.
 
-Local chat defaults to Ollama at `http://127.0.0.1:11434` with `qwen3:8b`. Start Ollama and install a model first. The interface lists installed local models. Conversations are private and saved; memories are not sent to the model. See [chat setup and limits](docs/chat.md).
+Local chat defaults to Ollama at `http://127.0.0.1:11434` with `qwen3:8b`. Start Ollama and install a model first. The interface lists installed local models. Conversations are private and saved. Live keyword retrieval supplies up to three authorized memory excerpts to local Ollama. See [chat setup and limits](docs/chat.md).
 
 Read the [architecture and six-phase checklist](docs/architecture.md), [installation guide](docs/install.md), [security model](SECURITY.md), and [recovery plan](docs/recovery.md).
 

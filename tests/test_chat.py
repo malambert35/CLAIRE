@@ -118,6 +118,89 @@ def test_provider_failure_is_not_reported_as_saved_success(chat_household):
         assert db.get(Conversation, conversation["id"]).active_run is None
 
 
+def test_chat_retrieves_current_authorized_memories(chat_household):
+    _, alice, bob, provider = chat_household
+
+    def memory(client, title, content, visibility="private"):
+        response = client.post(
+            "/api/v1/memories",
+            json={
+                "title": title,
+                "content": content,
+                "visibility": visibility,
+                "confirmed": True,
+            },
+        )
+        assert response.status_code == 201
+        return response.json()
+
+    own = memory(alice, "Voyage Orion", "Orion était notre bateau à Tadoussac.")
+    memory(bob, "Orion privé", "SECRET-BATEAU")
+    shared = memory(bob, "Orion partagé", "PARTAGE-BATEAU", "family")
+    gone = memory(alice, "Orion effacé", "EFFACE-BATEAU")
+    alice.post(
+        f"/api/v1/memories/{gone['id']}/delete",
+        json={
+            "expected_revision": 1,
+            "confirmed": True,
+        },
+    )
+    cid = alice.post("/api/v1/conversations", json={"title": "Archives"}).json()["id"]
+
+    def ask():
+        result = alice.post(
+            f"/api/v1/conversations/{cid}/messages",
+            json={
+                "content": "Que sais-tu du voyage Orion ?",
+                "model": "synthetic-local-model",
+            },
+        )
+        assert "event: done" in result.text
+        return provider.prompts[-1][0]["content"]
+
+    prompt = ask()
+    assert "Tadoussac" in prompt and "PARTAGE-BATEAU" in prompt
+    assert "SECRET-BATEAU" not in prompt and "EFFACE-BATEAU" not in prompt
+    assert own["id"] in prompt and '"revision": 1' in prompt
+    bob.put(
+        f"/api/v1/memories/{shared['id']}",
+        json={
+            "title": "Orion partagé",
+            "content": "PARTAGE-BATEAU",
+            "visibility": "private",
+            "expected_revision": 1,
+            "confirmed": True,
+        },
+    )
+    assert "PARTAGE-BATEAU" not in ask()
+
+
+@pytest.mark.skipif(os.environ.get("CLAIRE_LIVE_OLLAMA") != "1", reason="Opt-in local inference")
+def test_real_ollama_answers_from_new_memory(chat_household):
+    _, alice, _, provider = chat_household
+    ollama = Ollama(Settings())
+
+    async def real_stream(model, messages):
+        async for delta in ollama.stream("qwen3:8b", messages):
+            yield delta
+
+    provider.stream = real_stream
+    created = alice.post("/api/v1/memories", json={
+        "title": "Code du bateau Orion", "content": "Le code fictif du bateau Orion est LUMI742.",
+        "confirmed": True,
+    })
+    assert created.status_code == 201
+    cid = alice.post("/api/v1/conversations", json={"title": "Orion"}).json()["id"]
+    response = alice.post(f"/api/v1/conversations/{cid}/messages", json={
+        "content": "Quel est le code du bateau Orion ? Cite le titre du souvenir.",
+        "model": "synthetic-local-model",
+    })
+    assert "event: done" in response.text
+    answer = alice.get(f"/api/v1/conversations/{cid}").json()["messages"][-1]["content"]
+    assert "LUMI742" in answer
+    assert "Code du bateau Orion" in answer
+
+
 def test_busy_conversation_rejects_overlapping_generation(chat_household):
     app, alice, _, provider = chat_household
     conversation = alice.post("/api/v1/conversations", json={"title": "Busy"}).json()

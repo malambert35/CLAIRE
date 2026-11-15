@@ -27,7 +27,7 @@ For an existing Ollama server, configure CLAIRE_LLM_BASE_URL with a private addr
 
 ## Privacy and limits
 
-Only the user's recent conversation is included: at most 20 completed messages and 16,000 history characters, plus the current message and system instructions. There is no memory retrieval, document attachment, tool execution or cloud fallback. Public provider addresses and advertised cloud models are rejected. The operator must trust the configured local service: a private server can itself forward requests elsewhere.
+Only the user's recent conversation is included: at most 20 completed messages and 16,000 history characters, plus the current message and system instructions. Live lexical retrieval searches the latest 200 authorized, non-deleted memories and supplies up to three excerpts (2,400 characters each). Accents and case are normalized. Mention a name or detail from the memory; semantic similarity and follow-up query rewriting are not implemented. Reads verify committed revisions and visibility before sending content. There is no document attachment, tool execution or cloud fallback. Public provider addresses and advertised cloud models are rejected. The operator must trust the configured local service: a private server can itself forward requests elsewhere.
 
 Conversations and messages have owner-only PostgreSQL row-level policies. Family administrators cannot read other users' chats. Transcripts currently live in the database; portable transcript export and deletion UI remain future work. Include the database in backups.
 
@@ -36,3 +36,5 @@ Each conversation allows one generation at a time. Default timeout is 180 second
 ## Validation
 
 An opt-in real-provider browser test runs with `CLAIRE_LIVE_OLLAMA=1`, against the disposable smoke application on port 8010. CI skips this test without a local model. Real inference, reload and cancellation were verified with Ollama 0.40.3 and qwen3:8b on the development host. Protocol reference: https://docs.ollama.com/api/chat.
+
+New memories are available immediately without indexing or re-saving. Sources include title, UUID, revision and verification status in the model context; the model is instructed to cite title and revision. Citations are model-generated and should be checked against the memory. Previously saved chat responses remain in the private transcript even if a source is later deleted or made private.
