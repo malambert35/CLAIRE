@@ -14,11 +14,15 @@
 
 Compared `docs/design-concept.png` against browser screenshots with view_image. Inspected white/green palette, serif headings, sans-serif controls, sidebar order/icons, whitespace, footer and responsive layout. The concept's app region is one part of a combined app/login board, so screenshots use practical separate viewports rather than the board's full native dimensions.
 
-Intentional deviations: New memory is omitted until persistence is authorized through the API; an availability notice is added; account/logout controls are present; theme is a toggle rather than a dropdown. Main heading, empty-state text and privacy copy match. Mobile navigation scrolls horizontally within its own region. No screenshot is used as live UI. Screenshots are generated reproducibly by the e2e test into ignored data/ paths.
+The memory update enables New memory and adds editor, story, history, trash and restore states within the same palette/typography. Account/logout controls are present; theme is a toggle rather than a dropdown. Main heading, empty-state text and privacy copy match. Mobile navigation scrolls horizontally within its own region. No screenshot is used as live UI. Screenshots are generated reproducibly by the e2e test into ignored data/ paths.
+
+## Memory workflow update
+
+17 backend tests pass with PostgreSQL, including non-bypass RLS checks, cross-family denial, private/family sharing and revocation, owner-only editing/history, confirmation/CSRF, stale revisions, durable reload, tombstones/restoration, catalogue reconciliation after an interrupted write and preservation of existing accounts during upgrade. Two Chromium workflows pass: identity/localization/theme and create → reload → edit → original revision → delete → restore, including French mobile layout. A textarea accessibility label found during browser testing was corrected. The frontend production build passes.
 
 ## Still unverified
 
-Full Compose installation with least-privilege runtime credentials, arm64 images, external reverse proxy, Unraid host, and clean-host backup restoration. No LLM, RAG, MCP or voice operation is claimed. The archive library still needs database/file recovery reconciliation, resource permissions, concurrent/crash tests, complete family export/import, and independent backup verification before integration.
+Full Compose installation with least-privilege runtime credentials, arm64 images, external reverse proxy, Unraid host, and clean-host backup restoration. No LLM, RAG, MCP or voice operation is claimed. Power-loss/filesystem stress tests, automatic archive-write recovery, complete family export/import and independent backup verification remain open. The date-sorted view accepts ISO year, month or day precision; it is not a knowledge graph.
 
 ## Hosted CI
 

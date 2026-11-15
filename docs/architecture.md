@@ -22,7 +22,7 @@ React/Vite avoids an unnecessary second application server: FastAPI serves the c
 
 ## Implementation checklist
 
-Implemented foundation: identity, sessions, family-scoped member API, bilingual shell, migration round trip, non-root image, worker heartbeat and CI definitions. Validated locally on SQLite/PostgreSQL and Chromium. Complete Compose least-privilege installation and hosted CI remain open. Phase 2 has an offline archive library and schema; it is not yet integrated with web permissions or search.
+Implemented foundation: identity, sessions, family-scoped member API, bilingual shell, migration round trip, non-root image, worker heartbeat and CI definitions. Memory workflow now supports confirmed creation/editing, current private/family access, owner-only history, tombstones/restoration, title search and event-date ordering. PostgreSQL RLS is tested with a non-bypass role. Archive writes commit before the catalogue; mismatches fail closed and an offline operator command reconciles committed revisions. Semantic retrieval, LLM chat and automated recovery remain open.
 
 - [ ] Phase 1: runnable frontend/backend, authentication, family isolation, migrations, health/readiness, non-root Compose, CI; run PostgreSQL integration and browser tests.
 - [ ] Phase 2: durable revisions with recovery journal, ingestion jobs, hybrid pgvector/FTS retrieval, provenance and citations, streaming provider gateway, per-request remote consent.

@@ -40,6 +40,24 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm audit --audit-level=high
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.5"
+      - run: uv sync --frozen --python 3.12
+        working-directory: .
+      - run: npx playwright install --with-deps chromium
+      - name: Browser workflows against real backend
+        working-directory: .
+        run: |
+          uv run python scripts/serve_smoke.py > /tmp/claire-smoke.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8010/healthz; then break; fi
+            sleep 1
+          done
+          cd apps/frontend
+          npx playwright test
   container:
     runs-on: ubuntu-latest
     steps:

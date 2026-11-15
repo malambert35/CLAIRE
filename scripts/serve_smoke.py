@@ -13,8 +13,9 @@ from claire.main import create_app
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory(prefix="claire-smoke-") as temporary:
         app = create_app(Settings(database_url=f"sqlite:///{Path(temporary) / 'smoke.db'}",
-                                  origin="http://127.0.0.1:8000", secure_cookies=False,
-                                  static_dir=Path("apps/frontend/dist").resolve()))
+                                  origin="http://127.0.0.1:8010", secure_cookies=False,
+                                  static_dir=Path("apps/frontend/dist").resolve(),
+                                  data_dir=Path(temporary) / "archive"))
         Base.metadata.create_all(app.state.engine)
         with Session(app.state.engine) as db:
             family = Family(name="Example family")
@@ -23,4 +24,4 @@ if __name__ == "__main__":
             db.add(User(email="alice@example.test", family_id=family.id,
                         password_hash=passwords.hash("synthetic-browser-password"), role="member"))
             db.commit()
-        uvicorn.run(app, host="127.0.0.1", port=8000, access_log=False)
+        uvicorn.run(app, host="127.0.0.1", port=8010, access_log=False)

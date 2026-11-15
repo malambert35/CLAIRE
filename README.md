@@ -4,9 +4,19 @@
 
 A family-owned knowledge preservation platform with a replaceable AI layer.
 
-An initial offline archive library also preserves UUID provenance, immutable Markdown/JSON revisions, contradictory testimony, recoverable tombstones and checksummed single-memory exports. It is not exposed through the API yet; resource authorization and database reconciliation must precede that step.
+The memory workspace creates and edits real Markdown/JSON archives with UUID provenance, immutable revisions, private/family visibility, source attribution, revision history, recoverable deletion, title search and a date-sorted view. Owner-only history preserves previous private versions when the current story is shared. PostgreSQL row-level policies and application checks enforce access. An offline recovery command reconciles the catalogue after an interrupted write.
 
-**Status: 0.1.0 foundation under development, not production-ready.** Authentication, family membership listing, migrations, health endpoints and a bilingual responsive interface are implemented. Memories, chat, retrieval, integrations, backup and succession are not yet available. No fake AI or persistence responses are provided.
+**Status: 0.1.0 under development, not production-ready.** Identity and the memory workflow are implemented and tested. AI chat, semantic retrieval, document ingestion, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
+
+## Windows local start
+
+Stop a previous local server with Ctrl+C, then run from the repository:
+
+```powershell
+.\scripts\start-local.ps1
+```
+
+This migrates the existing `data/dev.db`, builds the interface and starts http://localhost:8000. Existing accounts remain intact. To create your first account, add `-Email you@example.test -FamilyName 'My family'`; do not pass `-Email` again for an existing account. The local script uses SQLite for evaluation; Docker uses PostgreSQL.
 
 Read the [architecture and six-phase checklist](docs/architecture.md), [installation guide](docs/install.md), [security model](SECURITY.md), and [recovery plan](docs/recovery.md).
 
@@ -52,6 +62,11 @@ OpenAPI JSON: `/openapi.json`. FastAPI documentation: `/docs` (the strict CSP cu
 | POST | `/api/v1/auth/logout` | Revoke session |
 | GET | `/api/v1/family/members` | Current household only |
 | GET | `/api/v1/capabilities` | Implemented feature flags |
+| GET/POST | `/api/v1/memories` | Authorized list/title search and confirmed creation |
+| GET/PUT | `/api/v1/memories/{id}` | Read or revise; owner-only writes |
+| GET | `/api/v1/memories/{id}/history` | Owner-only revision history |
+| POST | `/api/v1/memories/{id}/delete` | Recoverable deletion |
+| POST | `/api/v1/memories/{id}/restore` | Restore previous visibility |
 
 Mutations require an exact configured Origin; authenticated mutations also require `X-CSRF-Token`. Session cookies are HttpOnly, Secure, SameSite=Strict by default. There is no public registration or default account.
 

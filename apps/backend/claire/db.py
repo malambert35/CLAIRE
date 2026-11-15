@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -53,3 +53,18 @@ class LoginAttempt(Base):
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     count: Mapped[int] = mapped_column(default=0)
     started: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class Memory(Base):
+    """Reconstructable catalogue; content and provenance live in the archive."""
+
+    __tablename__ = "memories"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    family_id: Mapped[str] = mapped_column(ForeignKey("families.id"), index=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    visibility: Mapped[str] = mapped_column(String(12), default="private")
+    revision: Mapped[int] = mapped_column()
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    event_date: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

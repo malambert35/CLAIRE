@@ -6,3 +6,4 @@ GRANT USAGE ON SCHEMA public TO claire_runtime;
 GRANT SELECT ON families, users, alembic_version TO claire_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, login_attempts TO claire_runtime;
 GRANT INSERT ON audit TO claire_runtime;
+GRANT SELECT, INSERT, UPDATE ON memories TO claire_runtime;

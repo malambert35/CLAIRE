@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     database_url_file: Path | None = None
     origin: str = "https://localhost"
     secure_cookies: bool = True
-    data_dir: Path = Path("/data")
+    data_dir: Path = Path("data/archive")
     static_dir: Path = Path("/app/static")
     session_hours: int = 12
 

@@ -15,6 +15,7 @@ import {
 import { api, type Identity, type Member } from "./api";
 import { Login } from "./Login";
 import { translations } from "./i18n";
+import { Memories } from "./Memories";
 const icons = [
   MessageCircle,
   BookOpen,
@@ -27,6 +28,7 @@ const icons = [
   CircleCheck,
   Settings,
 ];
+const availableSections = new Set([1, 2, 5]);
 
 export default function App() {
   const [lang, setLang] = useState<"en" | "fr">("en");
@@ -103,6 +105,8 @@ export default function App() {
             return (
               <button
                 key={i}
+                disabled={!availableSections.has(i)}
+                title={availableSections.has(i) ? undefined : t.pending}
                 aria-current={page === i ? "page" : undefined}
                 onClick={() => {
                   setPage(i);
@@ -128,7 +132,14 @@ export default function App() {
             <h1>{t.nav[page]}</h1>
           </div>
           {error && <p role="alert">{error}</p>}
-          {page === 5 ? (
+          {page === 1 || page === 2 ? (
+            <Memories
+              key={`${user.id}-${page}`}
+              user={user}
+              lang={lang}
+              timeline={page === 2}
+            />
+          ) : page === 5 ? (
             <div className="members">
               {members.map((m) => (
                 <article key={m.id}>

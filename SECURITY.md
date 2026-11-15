@@ -9,7 +9,7 @@ Report vulnerabilities privately to the repository maintainer through GitHub pri
 - Opaque random sessions, hash-only token storage, expiration and revocation; Argon2 password hashes.
 - Same-origin mutation checks plus session-bound CSRF tokens; secure cookies by default.
 - No administrator override in the family member endpoint. Runtime credentials do not own the schema.
-- No remote AI transmission, MCP execution, shell tools, uploads or memory routes are enabled.
+- Memory routes enforce owner-only writes, private/family visibility, current-revision ACL checks and PostgreSQL RLS. Historical revisions remain private to their owner. No remote AI transmission, MCP execution, shell tools or uploads are enabled.
 - Logging excludes bodies, passwords and session tokens. Audit records contain actor ID, action and time.
 - Non-root app containers, read-only root filesystems, dropped capabilities, no host socket, private database port.
 
@@ -20,7 +20,7 @@ Host administrators can read unencrypted application files, database contents, p
 | Threat | Present control / remaining work |
 | --- | --- |
 | Compromised account | Session revocation and account login throttling; MFA/OIDC and UI revocation pending |
-| Cross-family requests | Family ID derived from authenticated identity; resource RLS and private-memory tests pending |
+| Cross-family requests | Family ID derived from authenticated identity; memory RLS plus private/search/history/revocation tests. Graph/RAG/MCP are not enabled. |
 | Malicious documents | Uploads disabled; sandboxed extraction, size/zip limits and quarantine required before enablement |
 | Prompt injection | No tool/model execution; future untrusted content cannot alter policy or grant permissions |
 | Compromised MCP | Disabled; per-user credentials, transport validation and read-only allowlists required |

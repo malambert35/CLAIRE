@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from .config import Settings
 from .db import Audit, Family, User
 from .identity import authenticate, login
+from .memories import memory_router
 
 logger = logging.getLogger("claire")
 
@@ -73,7 +74,7 @@ def create_app(settings: Settings | None = None):
         try:
             with engine.connect() as connection:
                 revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-                if revision != "0001":
+                if revision != "0002":
                     raise ValueError("Migration required")
             return {"status": "ready"}
         except (SQLAlchemyError, ValueError):
@@ -131,12 +132,13 @@ def create_app(settings: Settings | None = None):
             "version": "0.1.0",
             "identity": True,
             "family_members": True,
-            "memories": False,
+            "memories": True,
             "chat": False,
             "remote_ai": False,
             "integrations": False,
         }
 
+    app.include_router(memory_router(engine, settings))
     if settings.static_dir.is_dir():
         app.mount("/", StaticFiles(directory=settings.static_dir, html=True), name="frontend")
     return app

@@ -49,4 +49,6 @@ Open `http://localhost:8000` exactly. Secure cookies intentionally do not work o
 
 ## Upgrade
 
+The memory update adds migration `0002` without deleting accounts or sessions. Run `uv run alembic upgrade head` in your configured local environment (or use `scripts/start-local.ps1` on Windows). Docker: stop web/worker, rebuild, run `docker compose run --rm migrate`, then start web/worker. New installs grant memory catalogue access through runtime-role.sql; the migration grants access to an existing `claire_runtime` role. Restart the application after migration. Local archives default to `data/archive`; Docker sets `CLAIRE_DATA_DIR=/data` explicitly.
+
 Back up the database and files together before upgrades. Stop writes, run owner-only Alembic migrations, then start web/worker roles. Never run destructive downgrade against real data without a verified restore. The initial downgrade intentionally drops identity tables and is only exercised on disposable test databases. Reassess image pins and run scans before deployment.
