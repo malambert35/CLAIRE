@@ -1,0 +1,203 @@
+{
+  "$defs": {
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "reference": {
+          "maxLength": 2000,
+          "title": "Reference",
+          "type": "string"
+        },
+        "relationship": {
+          "default": "supports",
+          "enum": [
+            "supports",
+            "contradicts",
+            "context"
+          ],
+          "title": "Relationship",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reference"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "family_id": {
+      "format": "uuid",
+      "title": "Family Id",
+      "type": "string"
+    },
+    "owner_id": {
+      "format": "uuid",
+      "title": "Owner Id",
+      "type": "string"
+    },
+    "contributor_id": {
+      "format": "uuid",
+      "title": "Contributor Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "parent_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Revision"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "memory_type": {
+      "default": "personal_memory",
+      "maxLength": 80,
+      "title": "Memory Type",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "event_date": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Event Date"
+    },
+    "visibility": {
+      "default": "private",
+      "enum": [
+        "private",
+        "family",
+        "readers"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    },
+    "authorized_readers": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 1000,
+      "title": "Authorized Readers",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "maxItems": 1000,
+      "title": "Sources",
+      "type": "array"
+    },
+    "related_people": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 1000,
+      "title": "Related People",
+      "type": "array"
+    },
+    "related_events": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 1000,
+      "title": "Related Events",
+      "type": "array"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 100,
+      "title": "Tags",
+      "type": "array"
+    },
+    "verification": {
+      "default": "recollection",
+      "enum": [
+        "recollection",
+        "verified",
+        "uncertain",
+        "ai_interpretation"
+      ],
+      "title": "Verification",
+      "type": "string"
+    },
+    "deleted": {
+      "default": false,
+      "title": "Deleted",
+      "type": "boolean"
+    },
+    "content_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Content Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "family_id",
+    "owner_id",
+    "contributor_id",
+    "revision",
+    "title",
+    "created_at",
+    "recorded_at",
+    "content_sha256"
+  ],
+  "title": "MemoryMetadata",
+  "type": "object"
+}

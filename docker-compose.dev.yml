@@ -1,0 +1,6 @@
+# Explicit local HTTP override; never use for remote deployment.
+services:
+  claire-app:
+    environment:
+      CLAIRE_ORIGIN: http://localhost:8000
+      CLAIRE_SECURE_COOKIES: "false"

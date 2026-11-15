@@ -1,0 +1,10 @@
+.git
+.env
+.venv
+.cache
+.python
+data
+**/node_modules
+**/__pycache__
+**/dist
+docs/design-concept.png

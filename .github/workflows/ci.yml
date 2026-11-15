@@ -1,0 +1,61 @@
+name: Validate
+on: [push, pull_request, workflow_call]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.0-pg17
+        env:
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: claire_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.5"
+      - run: uv sync --frozen --python 3.12
+      - run: uv run ruff check apps/backend tests
+      - run: uv run pytest
+        env:
+          CLAIRE_TEST_DATABASE_URL: postgresql+psycopg://postgres:disposable-ci-password@localhost/claire_test
+      - run: uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt
+      - run: uvx pip-audit -r /tmp/requirements.txt
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm audit --audit-level=high
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t claire:ci .
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: claire:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+      - uses: anchore/sbom-action@v0
+        with:
+          image: claire:ci
+          format: spdx-json
+          output-file: claire.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: claire.spdx.json
