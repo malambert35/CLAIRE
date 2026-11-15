@@ -349,6 +349,27 @@ export function Memories({
     setError("");
     setNotice("");
   }
+  async function downloadMemory() {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/v1/memories/${selected.id}/export`, { credentials: "same-origin" });
+      if (!response.ok) throw new Error(t.exportError);
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `claire-memory-${selected.id}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setError(t.exportError);
+    } finally {
+      setBusy(false);
+    }
+  }
   const displayed = items;
   return (
     <section className="memory-panel">
@@ -373,6 +394,12 @@ export function Memories({
         <>
           <button onClick={back}>{t.back}</button>
           <Story memory={selected} t={t} lang={lang} />
+          {selected.owner_id === user.id && (
+            <div>
+              <button disabled={busy} onClick={downloadMemory}>{t.export}</button>
+              <p>{t.exportNote}</p>
+            </div>
+          )}
           {selected.can_edit ? (
             <div className="memory-actions">
               {!selected.deleted && (

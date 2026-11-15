@@ -2,6 +2,22 @@
 
 Not an implemented backup subsystem. Do not claim restore readiness until a clean-host exercise succeeds.
 
+## Portable export available now
+
+Open one of your memories and choose **Download all versions (.zip)** (French: **Télécharger toutes les versions (.zip)**). Only the owner can export; sharing the latest version never grants export of earlier private versions. Deleted memories can also be exported from the owner's trash.
+
+The ZIP includes original Markdown, JSON metadata for every committed revision, the metadata schema, a bilingual reading guide and a SHA-256 manifest. No database credentials, sessions or application configuration are added. User-authored content and source references are preserved verbatim, so protect the download if they contain sensitive information. The ZIP is not encrypted. External source documents are not bundled.
+
+Verify a downloaded package without extracting or importing it:
+
+```powershell
+uv run python -m claire.portable 'C:\path\to\claire-memory-UUID.zip'
+```
+
+The command validates file inventory, checksums, identities and revision continuity. Exit status is nonzero on failure. Checksums detect corruption but do not authenticate the author. A text editor can read the extracted Markdown and JSON without CLAIRE or a model.
+
+Web exports are limited to 500 revisions and 32 MiB of uncompressed content per memory. An export fails if the source changes during preparation. This is a single-memory preservation package, not a full household backup or a working import/restore system.
+
 Authoritative future layout:
 
 ```text

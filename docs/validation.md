@@ -1,5 +1,9 @@
 # Validation record
 
+## Portable memory export
+
+24 backend tests pass with SQLite (two opt-in PostgreSQL/live-model tests skipped). Export tests cover owner-only access, another family's denial, original private revisions, deleted history, Unicode preservation, tampering and unexpected file paths. Two Playwright Chromium workflows pass, including a real ZIP download and French mobile export control. The downloaded two-revision ZIP passes `python -m claire.portable`; mobile screenshot inspected at 390px with no horizontal overflow. Production frontend build and Ruff pass. Browser plugin unavailable; existing Playwright workflow used. PostgreSQL rerun was unavailable because Docker Desktop's Linux engine was stopped. Full restore/import is not claimed.
+
 2026-11-15, Windows development host, Python 3.12, Chromium via Playwright.
 
 - Backend identity and archive tests: 11 passing with SQLite, then 11 passing with PostgreSQL.

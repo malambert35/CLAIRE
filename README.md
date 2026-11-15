@@ -6,6 +6,8 @@ A family-owned knowledge preservation platform with a replaceable AI layer.
 
 The memory workspace creates and edits real Markdown/JSON archives with UUID provenance, immutable revisions, private/family visibility, source attribution, revision history, recoverable deletion, title search and a date-sorted view. Owner-only history preserves previous private versions when the current story is shared. PostgreSQL row-level policies and application checks enforce access. An offline recovery command reconciles the catalogue after an interrupted write.
 
+Owners can download a memory and all its revisions as a portable ZIP with Markdown, JSON, schema and checksum manifest. Verify it offline with `uv run python -m claire.portable path/to/memory.zip`. See the [export and recovery guide](docs/recovery.md).
+
 **Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow and streaming local Ollama chat are implemented and tested. Semantic retrieval, document ingestion, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
 
 ## Windows local start

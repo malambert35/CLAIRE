@@ -2,6 +2,8 @@
 
 ## 0.1.0 — unreleased
 
+- Owner-only portable ZIP download of complete memory revision history, including deleted memories; offline checksum and revision-chain verification without extraction.
+
 - Chat now retrieves current authorized memory excerpts by keyword, without an indexing delay; local inference verified against a newly saved synthetic memory.
 
 - Real local Ollama streaming chat, installed-model selection, private persisted history and cancellation.

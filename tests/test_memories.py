@@ -1,5 +1,8 @@
+import io
+import json
 import os
 from uuid import UUID
+from zipfile import ZipFile
 
 import pytest
 from claire.archive import Archive
@@ -8,6 +11,7 @@ from claire.config import Settings
 from claire.db import Base, Family, User
 from claire.identity import passwords
 from claire.main import create_app
+from claire.portable import verify_package
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
@@ -69,6 +73,44 @@ def draft(**changes):
         "confirmed": True,
         **changes,
     }
+
+
+def test_portable_export_preserves_revisions_and_is_owner_only(household, tmp_path):
+    clients, _ = household
+    alice = clients["alice"]
+    saved = alice.post("/api/v1/memories", json=draft()).json()
+    path = f"/api/v1/memories/{saved['id']}"
+    alice.put(path, json=draft(content="Version partagée — été.", visibility="family", expected_revision=1))
+    assert clients["bob"].get(path + "/export").status_code == 403
+    assert clients["outsider"].get(path + "/export").status_code == 404
+    response = alice.get(path + "/export")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["cache-control"] == "no-store"
+    package = tmp_path / "memory.zip"
+    package.write_bytes(response.content)
+    manifest = verify_package(package)
+    assert manifest["revision"] == 2
+    with ZipFile(package) as bundle:
+        assert bundle.read("revisions/1/content.md").decode() == "My original recollection."
+        assert bundle.read("revisions/2/content.md").decode() == "Version partagée — été."
+        assert json.loads(bundle.read("revisions/1/metadata.json"))["visibility"] == "private"
+    # Deletion must not destroy the owner's portable revision history.
+    alice.post(path + "/delete", json={"expected_revision": 2, "confirmed": True})
+    package.write_bytes(alice.get(path + "/export").content)
+    assert verify_package(package)["revision"] == 3
+    # Tampering and path injection are rejected without extracting any files.
+    damaged = io.BytesIO()
+    with ZipFile(package) as original, ZipFile(damaged, "w") as target:
+        for name in original.namelist():
+            target.writestr(name, b"changed" if name.endswith("content.md") else original.read(name))
+    package.write_bytes(damaged.getvalue())
+    with pytest.raises(ValueError, match="checksum"):
+        verify_package(package)
+    with ZipFile(package, "a") as bundle:
+        bundle.writestr("../escape.txt", "unsafe")
+    with pytest.raises(ValueError, match="Unexpected"):
+        verify_package(package)
 
 
 def test_private_shared_revocation_history_and_other_family(household):

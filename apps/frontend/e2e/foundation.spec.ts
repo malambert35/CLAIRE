@@ -90,6 +90,12 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
   await expect(page.locator(".history")).toContainText(
     "We made crêpes together.",
   );
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download all versions (.zip)", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^claire-memory-.*\.zip$/);
+  await download.saveAs("../../data/memory-export-smoke.zip");
+  expect(await download.failure()).toBeNull();
   await page.screenshot({
     path: "../../data/memory-desktop.png",
     fullPage: true,
@@ -116,6 +122,8 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
   await expect(
     page.getByRole("button", { name: /The summer of 1962/ }),
   ).toBeVisible();
+  await page.getByRole("button", { name: /The summer of 1962/ }).click();
+  await expect(page.getByRole("button", { name: "Télécharger toutes les versions (.zip)", exact: true })).toBeVisible();
   await page.screenshot({
     path: "../../data/memory-mobile.png",
     fullPage: true,

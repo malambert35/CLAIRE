@@ -6,6 +6,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session, object_session
 from .archive import Archive, ArchiveConflict, Source, checksum
 from .db import Audit, Memory, User, now
 from .identity import authenticate
+from .portable import package_memory
 
 
 class MemoryInput(BaseModel):
@@ -230,5 +232,18 @@ def memory_router(engine, settings):
                 result(*archive.read(metadata.family_id, metadata.owner_id, metadata.id, revision), user)
                 for revision in reversed(revisions)
             ]
+
+    @router.get("/{memory_id}/export")
+    def export(memory_id: UUID, request: Request):
+        with access(request) as (db, user):
+            row = find(db, user, memory_id)
+            if row.owner_id != user.id:
+                raise HTTPException(403, "Only the owner may export private revision history")
+            metadata, _ = read(row, user)
+            data = package_memory(archive, metadata)
+            return Response(data, media_type="application/zip", headers={
+                "Content-Disposition": f'attachment; filename="claire-memory-{memory_id}.zip"',
+                "Cache-Control": "no-store",
+            })
 
     return router
