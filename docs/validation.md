@@ -18,4 +18,8 @@ Intentional deviations: New memory is omitted until persistence is authorized th
 
 ## Still unverified
 
-Full Compose installation with least-privilege runtime credentials, arm64 images, external reverse proxy, Unraid host, CI hosted execution, image vulnerability scan/SBOM, and clean-host backup restoration. No LLM, RAG, MCP or voice operation is claimed. The archive library still needs database/file recovery reconciliation, resource permissions, concurrent/crash tests, complete family export/import, and independent backup verification before integration.
+Full Compose installation with least-privilege runtime credentials, arm64 images, external reverse proxy, Unraid host, and clean-host backup restoration. No LLM, RAG, MCP or voice operation is claimed. The archive library still needs database/file recovery reconciliation, resource permissions, concurrent/crash tests, complete family export/import, and independent backup verification before integration.
+
+## Hosted CI
+
+GitHub backend/frontend tests and dependency audits pass. The container build passes, but Trivy blocks release on OS package findings. Refreshing the Python base from Debian 12 to digest-pinned Debian 13 reduced the report from 143 high/critical findings (9 critical) to 49 high findings (0 critical). Runtime OS updates are now applied during build to consume available fixes. Remaining findings require triage; the blocking scan is not weakened and no production image is published. SBOM generation/upload runs even when the scan fails. See the repository Actions page for the current report.
