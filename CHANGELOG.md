@@ -2,6 +2,8 @@
 
 ## 0.1.0 — unreleased
 
+- Replace the Debian runtime with digest-pinned Python 3.12 Alpine 3.24 and matching musl wheels; apply available OS fixes without suppressing Trivy findings. Add installed-runtime CI checks under non-root/read-only restrictions.
+
 - Portable ZIP import with verified preview and checksum-bound confirmation, preserved history/provenance and a new private copy without overwriting existing memories.
 
 - Owner-only portable ZIP download of complete memory revision history, including deleted memories; offline checksum and revision-chain verification without extraction.

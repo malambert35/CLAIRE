@@ -63,6 +63,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t claire:ci .
+      - name: Test installed container runtime
+        run: |
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            -v "$PWD/scripts/container_smoke.py:/checks/container_smoke.py:ro" \
+            claire:ci python /checks/container_smoke.py
       - name: Scan image security (HIGH and CRITICAL block release)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
