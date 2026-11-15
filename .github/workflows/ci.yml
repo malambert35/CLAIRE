@@ -63,11 +63,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t claire:ci .
-      - uses: aquasecurity/trivy-action@v0.36.0
+      - name: Scan image security (HIGH and CRITICAL block release)
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.2
           image-ref: claire:ci
           severity: CRITICAL,HIGH
           exit-code: "1"
+          format: json
+          output: trivy-report.json
+      - name: Summarize image security
+        if: always()
+        run: |
+          python - <<'PY'
+          import collections
+          import json
+          import os
+          from pathlib import Path
+
+          report = Path('trivy-report.json')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('## Container security\n\n')
+              if not report.exists():
+                  summary.write('No scan report produced. Check the Trivy step for a scanner/setup error.\n')
+              else:
+                  results = json.loads(report.read_text()).get('Results', [])
+                  vulnerabilities = [v for r in results for v in r.get('Vulnerabilities', [])]
+                  counts = collections.Counter(v['Severity'] for v in vulnerabilities)
+                  summary.write(f"HIGH: {counts['HIGH']} · CRITICAL: {counts['CRITICAL']}\n\n")
+                  summary.write('The scan blocks release on these findings. A version notice or cleanup step is not the cause. Download the image-security artifact for details.\n\n')
+                  summary.write('| Package | Findings | Fixed versions reported |\n|---|---:|---|\n')
+                  packages = collections.defaultdict(list)
+                  for vulnerability in vulnerabilities:
+                      packages[vulnerability['PkgName']].append(vulnerability)
+                  for name, findings in sorted(packages.items()):
+                      versions = sorted({v['FixedVersion'] for v in findings if v.get('FixedVersion')})
+                      summary.write(f"| {name} | {len(findings)} | {', '.join(versions) or 'None reported by scanner'} |\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: image-security
+          path: trivy-report.json
+          if-no-files-found: warn
       - uses: anchore/sbom-action@v0.24.3
         if: always()
         with:
