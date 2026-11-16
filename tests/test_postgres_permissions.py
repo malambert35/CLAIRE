@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from claire.db import Conversation, Family, Memory, Message, User, now
+from claire.db import Asset, Conversation, Family, Memory, Message, User, now
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -57,6 +57,25 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
                 )
             )
         family_id, alice_id, bob_id = family.id, alice.id, bob.id
+        for title, user, visibility in [
+            ("private", alice, "private"),
+            ("shared", alice, "family"),
+            ("foreign", eve, "family"),
+        ]:
+            db.add(
+                Asset(
+                    family_id=user.family_id,
+                    owner_id=user.id,
+                    title=title,
+                    filename="photo.png",
+                    description="",
+                    mime="image/png",
+                    category="image",
+                    sha256="0" * 64,
+                    size=20,
+                    visibility=visibility,
+                )
+            )
         conversation = Conversation(owner_id=alice_id, family_id=family_id, title="Private chat")
         db.add(conversation)
         db.flush()
@@ -76,12 +95,13 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
         connection.execute(text(f'CREATE ROLE "{role}" NOLOGIN NOSUPERUSER NOBYPASSRLS'))
         connection.execute(text(f'GRANT USAGE ON SCHEMA public TO "{role}"'))
         connection.execute(
-            text(f'GRANT SELECT, INSERT, UPDATE ON memories, conversations, messages TO "{role}"')
+            text(f'GRANT SELECT, INSERT, UPDATE ON memories, conversations, messages, assets TO "{role}"')
         )
     try:
         with engine.begin() as connection:
             connection.execute(text(f'SET LOCAL ROLE "{role}"'))
             assert connection.scalar(text("SELECT count(*) FROM memories")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM assets")) == 0
             connection.execute(
                 text(
                     "SELECT set_config('claire.user_id', :user, true), "
@@ -90,6 +110,13 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
                 {"user": bob_id, "family": family_id},
             )
             assert connection.scalars(text("SELECT title FROM memories")).all() == ["shared"]
+            assert connection.scalars(text("SELECT title FROM assets")).all() == ["shared"]
+            assert (
+                connection.execute(
+                    text("UPDATE assets SET visibility='private' WHERE title='shared'")
+                ).rowcount
+                == 0
+            )
             assert connection.scalar(text("SELECT count(*) FROM conversations")) == 0
             assert connection.scalar(text("SELECT count(*) FROM messages")) == 0
             assert (
@@ -140,7 +167,7 @@ def test_database_rls_denies_private_foreign_and_owner_forgery(monkeypatch):
             assert connection.scalar(text("SELECT content FROM messages")) == "Private transcript"
     finally:
         with engine.begin() as connection:
-            connection.execute(text(f'REVOKE ALL ON memories, conversations, messages FROM "{role}"'))
+            connection.execute(text(f'REVOKE ALL ON memories, conversations, messages, assets FROM "{role}"'))
             connection.execute(text(f'REVOKE USAGE ON SCHEMA public FROM "{role}"'))
             connection.execute(text(f'DROP ROLE "{role}"'))
         engine.dispose()

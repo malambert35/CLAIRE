@@ -70,6 +70,24 @@ class Memory(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class Asset(Base):
+    __tablename__ = "assets"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    family_id: Mapped[str] = mapped_column(ForeignKey("families.id"), index=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    filename: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    mime: Mapped[str] = mapped_column(String(80))
+    category: Mapped[str] = mapped_column(String(12))
+    sha256: Mapped[str] = mapped_column(String(64))
+    size: Mapped[int] = mapped_column()
+    visibility: Mapped[str] = mapped_column(String(12), default="private")
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    revision: Mapped[int] = mapped_column(default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)

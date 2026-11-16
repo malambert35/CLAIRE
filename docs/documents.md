@@ -10,4 +10,6 @@ La recherche de la bibliothèque trouve une chaîne dans le titre ou le contenu,
 
 Le chat peut utiliser immédiatement les documents autorisés parmi les 200 archives les plus récemment modifiées, avec au maximum trois extraits. Pour les textes longs, il choisit des passages correspondant aux mots de la question au lieu de ne transmettre que le début. Mentionnez un nom ou un détail précis. Il n’y a ni entraînement du modèle ni recherche sémantique à cette étape.
 
-PDF, Word, images, OCR, import de dossiers et gros fichiers ne sont pas encore pris en charge. Aucun service cloud n’est utilisé pour l’import.
+L’onglet **Fichiers PDF** conserve et télécharge les PDF originaux jusqu’à 25 Mio. Leur texte n’est pas extrait ni transmis au chat. Les photos, sons et vidéos disposent du module **Photos et médias**. Voir [le guide des fichiers](files.md).
+
+Word, OCR, import de dossiers et gros fichiers ne sont pas encore pris en charge. Aucun service cloud n’est utilisé pour l’import.

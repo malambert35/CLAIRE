@@ -7,5 +7,6 @@ GRANT SELECT ON families, users, alembic_version TO claire_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, login_attempts TO claire_runtime;
 GRANT INSERT ON audit TO claire_runtime;
 GRANT SELECT, INSERT, UPDATE ON memories TO claire_runtime;
+GRANT SELECT, INSERT, UPDATE ON assets TO claire_runtime;
 GRANT SELECT, INSERT, UPDATE ON conversations TO claire_runtime;
 GRANT SELECT, INSERT ON messages TO claire_runtime;

@@ -6,6 +6,7 @@ import json
 import subprocess
 import time
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from uuid import uuid4
 
@@ -77,10 +78,13 @@ def main():
         opener = build_opener(HTTPCookieProcessor(http.cookiejar.CookieJar()))
         headers = {"Origin": origin, "Content-Type": "application/json"}
 
-        def request(path, body=None):
-            data = None if body is None else json.dumps(body).encode()
-            with opener.open(Request(origin + path, data=data, headers=headers), timeout=10) as response:
-                return json.loads(response.read())
+        def request(path, body=None, extra=None, raw=False):
+            data = body if isinstance(body, bytes) else None if body is None else json.dumps(body).encode()
+            with opener.open(
+                Request(origin + path, data=data, headers={**headers, **(extra or {})}), timeout=10
+            ) as response:
+                payload = response.read()
+                return payload if raw else json.loads(payload)
 
         result = request("/api/v1/auth/login", {"email": email, "password": "synthetic-aio-password"})
         headers["X-CSRF-Token"] = result["csrf_token"]
@@ -128,6 +132,24 @@ def main():
             {"title": "Persistent AIO memory", "content": "Original text.", "confirmed": True},
         )
         path = f"/api/v1/memories/{saved['id']}"
+        pdf = b"%PDF-1.7\n% synthetic original\n%%EOF"
+        asset = request(
+            "/api/v1/assets",
+            pdf,
+            {
+                "Content-Type": "application/octet-stream",
+                "X-File-Metadata": quote(
+                    json.dumps({"filename": "letter.pdf", "title": "Persistent PDF", "confirmed": True})
+                ),
+            },
+        )
+        asset_path = f"/api/v1/assets/{asset['id']}/content"
+        assert request(asset_path, raw=True) == pdf
+        try:
+            client("outsider@example.test")(asset_path, raw=True)
+            raise AssertionError("Other family could read private original")
+        except HTTPError as error:
+            assert error.code == 404
         try:
             client("outsider@example.test")(path)
             raise AssertionError("Other family could read private memory")
@@ -187,6 +209,7 @@ def main():
         launch(name + "-duplicate", publish=False)
         assert docker("wait", name + "-duplicate") == "1"
         assert request(path)["content"] == "Original text."
+        assert request(asset_path, raw=True) == pdf
         docker("stop", "--time", "120", name)
         assert docker("inspect", name, "--format", "{{.State.ExitCode}}") == "0"
         docker("rm", name)

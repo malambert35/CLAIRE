@@ -12,9 +12,11 @@ Owners can download a memory and all its revisions as a portable ZIP with Markdo
 
 Import a CLAIRE ZIP from the memory list with verification, preview and explicit confirmation. It creates a new private copy with revision history and origin references; it never overwrites an existing memory or restores old sharing grants.
 
-**Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow, text/Markdown document import and streaming local Ollama chat are implemented and tested. Semantic retrieval, PDF/Word ingestion, OCR, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
+**Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow, text/Markdown import, original PDF/media storage and streaming local Ollama chat are implemented and tested. Semantic retrieval, PDF text extraction, Word ingestion, OCR, transcription, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
 
 **Documents:** open **Documents and Archives → Import document**, choose a UTF-8 `.txt`, `.md` or `.markdown` file (maximum 8 KiB and 6,000 characters), review its text and visibility, then confirm. Documents are private by default. Search now matches titles and content. Imported documents are immediately eligible for local chat retrieval; no model training or separate indexing step is required. See [document import and its limits](docs/documents.md).
+
+**PDF originals and media:** use **Documents and Archives → PDF originals** or **Photos and Media → Import file**. Supported originals: PDF, JPEG, PNG, WebP, MP3, WAV and MP4, up to **25 MiB per file**. Private by default, with explicit family sharing, original download, metadata ZIP export, trash and restoration. Images, audio and video have browser previews/players; PDF files are downloaded. These binary files are **not automatically read by the LLM**. See [files, persistence and limitations](docs/files.md).
 
 ## Windows local start
 

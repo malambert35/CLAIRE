@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from .assets import ASSET_LIMIT, asset_router
 from .chat import chat_router
 from .config import Settings
 from .db import Audit, Family, User
@@ -49,6 +50,8 @@ def create_app(settings: Settings | None = None, provider=None):
             limit = (
                 UPLOAD_LIMIT
                 if request.url.path in {"/api/v1/memory-import/preview", "/api/v1/memory-import/confirm"}
+                else ASSET_LIMIT
+                if request.url.path == "/api/v1/assets"
                 else 16384
             )
             if length > limit:
@@ -81,7 +84,7 @@ def create_app(settings: Settings | None = None, provider=None):
         try:
             with engine.connect() as connection:
                 revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-                if revision != "0003":
+                if revision != "0004":
                     raise ValueError("Migration required")
             return {"status": "ready"}
         except (SQLAlchemyError, ValueError):
@@ -141,12 +144,14 @@ def create_app(settings: Settings | None = None, provider=None):
             "family_members": True,
             "memories": True,
             "documents": True,
+            "media": True,
             "chat": True,
             "remote_ai": False,
             "integrations": False,
         }
 
     app.include_router(memory_router(engine, settings))
+    app.include_router(asset_router(engine, settings))
     app.include_router(import_router(engine, settings))
     app.include_router(chat_router(engine, settings, provider))
     if settings.static_dir.is_dir():
