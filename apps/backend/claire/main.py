@@ -3,6 +3,9 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, select, text
@@ -14,6 +17,7 @@ from .chat import chat_router
 from .config import Settings
 from .db import Audit, Family, User
 from .identity import authenticate, login
+from .immich import immich_router
 from .imports import UPLOAD_LIMIT, import_router
 from .memories import memory_router
 
@@ -36,6 +40,13 @@ def create_app(settings: Settings | None = None, provider=None):
 
     app = FastAPI(title="CLAIRE", version="0.1.0", lifespan=lifespan)
     app.state.engine = engine
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_input(request, error):
+        if request.url.path.startswith("/api/v1/integrations/immich"):
+            # Pydantic's default error body includes raw inputs, potentially a credential.
+            return JSONResponse({"detail": "Invalid Immich configuration or request"}, status_code=422)
+        return await request_validation_exception_handler(request, error)
 
     @app.middleware("http")
     async def security(request: Request, call_next):
@@ -84,7 +95,7 @@ def create_app(settings: Settings | None = None, provider=None):
         try:
             with engine.connect() as connection:
                 revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-                if revision != "0004":
+                if revision != "0005":
                     raise ValueError("Migration required")
             return {"status": "ready"}
         except (SQLAlchemyError, ValueError):
@@ -147,10 +158,11 @@ def create_app(settings: Settings | None = None, provider=None):
             "media": True,
             "chat": True,
             "remote_ai": False,
-            "integrations": False,
+            "integrations": True,
         }
 
     app.include_router(memory_router(engine, settings))
+    app.include_router(immich_router(engine, settings))
     app.include_router(asset_router(engine, settings))
     app.include_router(import_router(engine, settings))
     app.include_router(chat_router(engine, settings, provider))

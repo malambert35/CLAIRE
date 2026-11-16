@@ -19,6 +19,7 @@ import { Memories } from "./Memories";
 import { Chat } from "./Chat";
 import { Files } from "./Files";
 import { Documents } from "./Documents";
+import { ImmichSettings } from "./ImmichSettings";
 const icons = [
   MessageCircle,
   BookOpen,
@@ -105,11 +106,14 @@ export default function App() {
         <nav aria-label="Main">
           {t.nav.map((label, i) => {
             const Icon = icons[i];
+            const available =
+              availableSections.has(i) ||
+              (i === 6 && user.role === "family_admin");
             return (
               <button
                 key={i}
-                disabled={!availableSections.has(i)}
-                title={availableSections.has(i) ? undefined : t.pending}
+                disabled={!available}
+                title={available ? undefined : t.pending}
                 aria-current={page === i ? "page" : undefined}
                 onClick={() => {
                   setPage(i);
@@ -137,6 +141,8 @@ export default function App() {
           {error && <p role="alert">{error}</p>}
           {page === 0 ? (
             <Chat key={user.id} user={user} lang={lang} />
+          ) : page === 6 && user.role === "family_admin" ? (
+            <ImmichSettings key={user.id} user={user} lang={lang} />
           ) : page === 4 ? (
             <Files key={user.id} user={user} lang={lang} />
           ) : page === 3 ? (

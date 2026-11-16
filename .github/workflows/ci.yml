@@ -11,6 +11,8 @@ jobs:
       - run: docker build --target aio -t claire:aio-ci .
       - name: Verify AIO initialization, persistence and process supervision
         run: python scripts/aio_smoke.py --image claire:aio-ci
+      - name: Verify real Immich MCP static and gateway compatibility
+        run: python scripts/immich_compat_smoke.py --image claire:aio-ci
       - name: Scan AIO image
         uses: aquasecurity/trivy-action@v0.36.0
         with:

@@ -78,10 +78,11 @@ def main():
         opener = build_opener(HTTPCookieProcessor(http.cookiejar.CookieJar()))
         headers = {"Origin": origin, "Content-Type": "application/json"}
 
-        def request(path, body=None, extra=None, raw=False):
+        def request(path, body=None, extra=None, raw=False, method=None):
             data = body if isinstance(body, bytes) else None if body is None else json.dumps(body).encode()
             with opener.open(
-                Request(origin + path, data=data, headers={**headers, **(extra or {})}), timeout=10
+                Request(origin + path, data=data, headers={**headers, **(extra or {})}, method=method),
+                timeout=10,
             ) as response:
                 payload = response.read()
                 return payload if raw else json.loads(payload)
@@ -132,6 +133,19 @@ def main():
             {"title": "Persistent AIO memory", "content": "Original text.", "confirmed": True},
         )
         path = f"/api/v1/memories/{saved['id']}"
+        config_path = "/api/v1/integrations/immich"
+        connection = request(
+            config_path,
+            {
+                "endpoint": "http://127.0.0.1:5000/mcp",
+                "enabled": False,
+                "token": "synthetic-mcp-token",
+                "expected_revision": 0,
+                "confirmed": True,
+            },
+            method="PUT",
+        )
+        assert connection["has_token"] and "synthetic-mcp-token" not in json.dumps(connection)
         pdf = b"%PDF-1.7\n% synthetic original\n%%EOF"
         asset = request(
             "/api/v1/assets",
@@ -209,6 +223,13 @@ def main():
         launch(name + "-duplicate", publish=False)
         assert docker("wait", name + "-duplicate") == "1"
         assert request(path)["content"] == "Original text."
+        assert request(config_path)["has_token"]
+        try:
+            request(config_path + "/read", {"action": "test"})
+            raise AssertionError("Loopback MCP was not rejected")
+        except HTTPError as error:
+            # 502 proves decryption survived restart; missing encryption key would return 503.
+            assert error.code == 502
         assert request(asset_path, raw=True) == pdf
         docker("stop", "--time", "120", name)
         assert docker("inspect", name, "--format", "{{.State.ExitCode}}") == "0"

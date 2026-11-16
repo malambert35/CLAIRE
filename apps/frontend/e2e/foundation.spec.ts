@@ -27,7 +27,9 @@ test("sign in, family navigation, localization, theme and revocation", async ({
   await page
     .getByRole("button", { name: "Family Members", exact: true })
     .click();
-  await expect(page.locator("article")).toContainText("alice@example.test");
+  await expect(
+    page.locator("article").filter({ hasText: "alice@example.test" }),
+  ).toBeVisible();
   await page.getByLabel("Language").selectOption("fr");
   await expect(
     page.getByRole("heading", { name: "Membres de la famille" }),

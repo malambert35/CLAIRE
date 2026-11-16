@@ -70,6 +70,16 @@ class Memory(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class ImmichConnection(Base):
+    __tablename__ = "immich_connections"
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    family_id: Mapped[str] = mapped_column(ForeignKey("families.id"), index=True)
+    endpoint: Mapped[str] = mapped_column(String(1000))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    token_cipher: Mapped[str | None] = mapped_column(Text, nullable=True)
+    revision: Mapped[int] = mapped_column(default=1)
+
+
 class Asset(Base):
     __tablename__ = "assets"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)

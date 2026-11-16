@@ -27,7 +27,7 @@ Implemented foundation: identity, sessions, family-scoped member API, bilingual 
 - [ ] Phase 1: runnable frontend/backend, authentication, family isolation, migrations, health/readiness, non-root Compose, CI; run PostgreSQL integration and browser tests.
 - [ ] Phase 2: durable revisions with recovery journal, ingestion jobs, hybrid pgvector/FTS retrieval, provenance and citations, streaming provider gateway, per-request remote consent.
 - [ ] Phase 3: resource sharing/revocation, timeline and permission-filtered graph, contradictions, EN/FR, archive management.
-- [ ] Phase 4: runtime-discovered read-only Immich MCP with user-scoped credentials, local Whisper/Piper, provider replacement tests.
+- [ ] Phase 4: admin-configured read-only Immich MCP is implemented (Streamable HTTP, static/gateway discovery, encrypted proxy token, owner-admin access); member delegation, local Whisper/Piper and provider replacement tests remain pending.
 - [ ] Phase 5: checksummed export/import, consistent restic backups and clean-host restore, explicit multi-party succession, secret-free legacy package, approved tools.
 - [ ] Phase 6: adversarial privacy tests, dependency/image scanning, SBOM, performance, cross-host recovery exercise, signed versioned publishing.
 
