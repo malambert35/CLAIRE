@@ -4,6 +4,8 @@
 
 A family-owned knowledge preservation platform with a replaceable AI layer.
 
+Installation : [Windows local](#windows-local-start) · [Guide Unraid en français](#déploiement-de-test-sur-unraid) · [Développement](#quick-development-start)
+
 The memory workspace creates and edits real Markdown/JSON archives with UUID provenance, immutable revisions, private/family visibility, source attribution, revision history, recoverable deletion, title search and a date-sorted view. Owner-only history preserves previous private versions when the current story is shared. PostgreSQL row-level policies and application checks enforce access. An offline recovery command reconciles the catalogue after an interrupted write.
 
 Owners can download a memory and all its revisions as a portable ZIP with Markdown, JSON, schema and checksum manifest. Verify it offline with `uv run python -m claire.portable path/to/memory.zip`. See the [export and recovery guide](docs/recovery.md).
@@ -25,6 +27,191 @@ This migrates the existing `data/dev.db`, builds the interface and starts http:/
 Local chat defaults to Ollama at `http://127.0.0.1:11434` with `qwen3:8b`. Start Ollama and install a model first. The interface lists installed local models. Conversations are private and saved. Live keyword retrieval supplies up to three authorized memory excerpts to local Ollama. See [chat setup and limits](docs/chat.md).
 
 Read the [architecture and six-phase checklist](docs/architecture.md), [installation guide](docs/install.md), [security model](SECURITY.md), and [recovery plan](docs/recovery.md).
+
+## Déploiement de test sur Unraid
+
+Les instructions ci-dessous utilisent **Docker Compose**, depuis le terminal Unraid. Docker et Compose v2 doivent être disponibles (`docker compose version`). L'installation complète sur Unraid et la restauration après perte du serveur restent à valider : conservez vos originaux ailleurs pendant les essais.
+
+### Quels conteneurs sont nécessaires ?
+
+PostgreSQL fonctionne **dans Docker, dans un conteneur séparé de CLAIRE**. Le fichier Compose crée et relie les services suivants :
+
+| Service | Fonction | Port interne | Port à exposer sur Unraid |
+| --- | --- | --- | --- |
+| `claire-app` | Interface et API | TCP `8000` | `8000`, ou un autre port hôte libre |
+| `claire-db` | PostgreSQL avec pgvector | TCP `5432` | Aucun : accès par le réseau Docker |
+| `claire-worker` | Processus de fond | Aucun | Aucun |
+| `migrate` | Initialisation/migration du schéma, puis arrêt | Aucun | Aucun |
+| `claire-ollama` | Moteur IA facultatif | TCP `11434` | Aucun si utilisé dans ce Compose |
+
+Vous n'avez pas à ajouter manuellement un conteneur PostgreSQL lorsque vous utilisez ce Compose. L'application contacte `claire-db:5432`. Un seul conteneur créé via « Add Container » dans Unraid ne remplace pas cet ensemble.
+
+### 1. Récupérer et configurer le projet
+
+Aucune image de version n'est encore publiée sur Docker Hub : construisez-la depuis le dépôt. Avec Git disponible, dans le terminal Unraid :
+
+```sh
+mkdir -p /mnt/user/appdata/claire
+git clone https://github.com/malambert35/CLAIRE.git /mnt/user/appdata/claire/source
+cd /mnt/user/appdata/claire/source
+cp .env.example .env
+```
+
+Si le dépôt existe déjà, utilisez son dossier au lieu de le cloner de nouveau. Sans Git, téléchargez et extrayez le dépôt complet, puis ouvrez un terminal dans le dossier contenant `docker-compose.yml` et `Dockerfile`.
+
+Exemple de `.env` pour un **essai HTTP sur le réseau local**, avec Unraid à `192.168.1.50` (remplacez cette adresse par la vôtre) :
+
+```dotenv
+CLAIRE_PORT=8000
+CLAIRE_ORIGIN=http://192.168.1.50:8000
+CLAIRE_SECURE_COOKIES=false
+
+CLAIRE_DATA_PATH=/mnt/user/appdata/claire/archive
+CLAIRE_DB_PATH=/mnt/user/appdata/claire/postgres
+CLAIRE_MODELS_PATH=/mnt/user/appdata/claire/models
+CLAIRE_SECRET_PATH=/mnt/user/appdata/claire/secrets
+
+PUID=10001
+PGID=10001
+
+CLAIRE_LLM_BASE_URL=http://claire-ollama:11434
+CLAIRE_LLM_MODEL=qwen3:8b
+```
+
+| Variable | Utilisation |
+| --- | --- |
+| `CLAIRE_PORT` | Port hôte de l'interface ; le port interne reste `8000` |
+| `CLAIRE_ORIGIN` | Adresse exacte saisie dans le navigateur, protocole et port compris, sans `/` final |
+| `CLAIRE_SECURE_COOKIES` | `false` pour cet essai HTTP local ; `true` avec HTTPS |
+| `CLAIRE_DATA_PATH` | Archives Markdown/JSON, montées dans `/data` |
+| `CLAIRE_DB_PATH` | Données PostgreSQL, montées dans `/var/lib/postgresql/data` |
+| `CLAIRE_MODELS_PATH` | Modèles du service Ollama facultatif, montés dans `/root/.ollama` |
+| `CLAIRE_SECRET_PATH` | Dossier des trois fichiers secrets décrits ci-dessous |
+| `PUID`, `PGID` | Identité Linux de CLAIRE, du worker et des migrations ; ne modifie pas celle de PostgreSQL |
+| `CLAIRE_LLM_BASE_URL` | Adresse d'Ollama accessible depuis le conteneur CLAIRE |
+| `CLAIRE_LLM_MODEL` | Modèle installé à sélectionner par défaut |
+
+Les variables `*_PATH`, `CLAIRE_PORT`, `PUID` et `PGID` servent à configurer Compose ; elles ne sont pas toutes des variables internes de l'application.
+
+### 2. Autoriser l'accès depuis le réseau local
+
+Par défaut, le Compose publie CLAIRE sur `127.0.0.1` uniquement. Pour cet essai sur le LAN, **remplacez** la ligne `ports` de `claire-app` dans `docker-compose.yml` par :
+
+```yaml
+    ports: ["192.168.1.50:${CLAIRE_PORT:-8000}:8000"]
+```
+
+Ne l'ajoutez pas comme une seconde ligne. Utilisez l'IP réelle d'Unraid. Ouvrez ensuite `http://192.168.1.50:8000`. Si vous choisissez un autre port hôte, adaptez aussi `CLAIRE_ORIGIN`. N'utilisez pas `docker-compose.dev.yml` pour cet exemple : il force l'origine à `http://localhost:8000`.
+
+Pour un reverse proxy HTTPS, utilisez plutôt `CLAIRE_ORIGIN=https://claire.votre-domaine.ca` et `CLAIRE_SECURE_COOKIES=true`. Si le proxy est lui-même dans un conteneur, son `127.0.0.1` ne désigne pas Unraid : il doit pouvoir joindre le port publié ou partager un réseau Docker avec CLAIRE. Préservez les réponses en streaming, avec un délai suffisant pour l'inférence (180 secondes par défaut). Limitez les requêtes ordinaires à 16 Kio, et autorisez 34 Mio uniquement sur `/api/v1/memory-import/preview` et `/api/v1/memory-import/confirm`.
+
+### 3. Préparer les volumes et les secrets
+
+Exécutez ces commandes comme administrateur Unraid pour une nouvelle installation :
+
+```sh
+mkdir -p /mnt/user/appdata/claire/archive /mnt/user/appdata/claire/postgres /mnt/user/appdata/claire/models /mnt/user/appdata/claire/secrets
+chown 10001:10001 /mnt/user/appdata/claire/archive
+chmod 700 /mnt/user/appdata/claire/archive /mnt/user/appdata/claire/secrets
+```
+
+Adaptez le propriétaire d'`archive` si vous changez `PUID`/`PGID`. Ces variables ne corrigent pas automatiquement les permissions des fichiers existants. Ne changez pas récursivement le propriétaire du dossier PostgreSQL vers l'utilisateur CLAIRE. Placez la base sur un stockage local adapté, idéalement le pool/cache prévu pour appdata ; ne déplacez pas ses fichiers pendant qu'elle tourne.
+
+Créez dans `secrets` les fichiers suivants, avec un éditeur local. Utilisez **deux mots de passe aléatoires différents**, pas les exemples :
+
+| Fichier | Contenu sur une seule ligne |
+| --- | --- |
+| `db_password` | Mot de passe brut de `claire_owner` |
+| `owner_database_url` | `postgresql+psycopg://claire_owner:MOT_DE_PASSE_OWNER_ENCODE@claire-db/claire` |
+| `database_url` | `postgresql+psycopg://claire_runtime:MOT_DE_PASSE_RUNTIME_ENCODE@claire-db/claire` |
+
+Dans les URL, encodez les caractères spéciaux des mots de passe au format URL ; `db_password` contient toujours la valeur brute correspondante. Compose monte uniquement les secrets nécessaires à chaque service. L'application et le worker utilisent `CLAIRE_DATABASE_URL_FILE=/run/secrets/database_url` ; les migrations utilisent `/run/secrets/owner_database_url`.
+
+Avec les identifiants par défaut, réglez les permissions après création :
+
+```sh
+chown root:10001 /mnt/user/appdata/claire/secrets/database_url /mnt/user/appdata/claire/secrets/owner_database_url
+chmod 440 /mnt/user/appdata/claire/secrets/database_url /mnt/user/appdata/claire/secrets/owner_database_url
+chown root:root /mnt/user/appdata/claire/secrets/db_password
+chmod 444 /mnt/user/appdata/claire/secrets/db_password
+```
+
+Le dossier parent `secrets` reste en `700`, réservé à l'administrateur sur l'hôte. Le mode de `db_password` permet au processus PostgreSQL de lire le fichier monté, quel que soit son UID dans l'image. Ne partagez pas ce dossier par SMB et ne commitez jamais ces fichiers.
+
+### 4. Initialiser la base et le premier compte
+
+Depuis le dossier du dépôt, avec `.env` et les secrets en place :
+
+```sh
+docker compose config --quiet
+docker compose build
+docker compose up -d claire-db
+docker compose run --rm migrate
+docker compose exec -T claire-db psql -v ON_ERROR_STOP=1 -U claire_owner -d claire < infrastructure/docker/runtime-role.sql
+docker compose exec claire-db psql -U claire_owner -d claire
+```
+
+Dans `psql`, saisissez :
+
+```text
+\password claire_runtime
+```
+
+Entrez le mot de passe **brut** correspondant à `database_url`, confirmez-le, puis tapez `\q`. Le script `runtime-role.sql` est destiné à la première installation : il crée le rôle, ne le réexécutez pas à chaque démarrage. Modifier `db_password` après initialisation ne change pas automatiquement le mot de passe d'une base existante.
+
+Créez ensuite le compte familial :
+
+```sh
+docker compose run --rm --entrypoint python migrate -m claire.cli vous@example.ca --family-name 'Ma famille' --role family_admin
+docker compose up -d claire-app claire-worker
+```
+
+Le mot de passe du compte est demandé interactivement et doit contenir au moins 14 caractères. **Il n'existe aucun identifiant ou mot de passe par défaut.** Les comptes créés dans la base SQLite de Windows ne sont pas automatiquement transférés vers PostgreSQL. Pour ajouter une personne à la même famille, utilisez `--family-id UUID` avec l'identifiant donné lors de la création initiale ; sans cette option, une autre famille est créée.
+
+### 5. Brancher Ollama
+
+**Ollama intégré au Compose** : gardez `CLAIRE_LLM_BASE_URL=http://claire-ollama:11434`, puis lancez :
+
+```sh
+docker compose --profile local-ai up -d claire-ollama
+docker compose exec claire-ollama ollama pull qwen3:8b
+```
+
+Le profil fourni utilise le CPU et une limite mémoire de 8 Gio pour Ollama ; adaptez les ressources au modèle. Le passthrough GPU Unraid n'est pas encore validé. Les modèles restent dans `CLAIRE_MODELS_PATH`.
+
+**Ollama déjà installé ailleurs** : ne démarrez pas le service facultatif et configurez, par exemple :
+
+```dotenv
+CLAIRE_LLM_BASE_URL=http://192.168.1.60:11434
+CLAIRE_LLM_MODEL=qwen3:8b
+```
+
+Le serveur Ollama doit écouter sur une adresse joignable depuis CLAIRE et autoriser cette connexion. `localhost` ou `127.0.0.1` dans CLAIRE désigne son propre conteneur, pas Unraid. Après modification du `.env`, recréez les services avec `docker compose up -d claire-app claire-worker`. Aucun port Ollama n'a besoin d'être exposé à Internet.
+
+### 6. Vérifier, arrêter et mettre à jour
+
+```sh
+docker compose ps
+docker compose logs --tail=100 claire-app claire-worker claire-db
+curl --fail http://192.168.1.50:8000/healthz
+curl --fail http://192.168.1.50:8000/readyz
+```
+
+Connectez-vous, créez un souvenir fictif, rechargez la page, vérifiez le chat Ollama et faites un export/import ZIP. La recherche du chat utilise actuellement des mots-clés ; mentionnez un nom ou un détail du souvenir.
+
+Si la connexion échoue : vérifiez l'origine exacte, `CLAIRE_SECURE_COOKIES=false` pour HTTP local, les permissions des secrets, le mot de passe de `claire_runtime` et les journaux. Un port web inaccessible peut venir du binding `127.0.0.1` resté inchangé ou d'un port déjà occupé.
+
+Pour arrêter : `docker compose stop`. Les données restent dans les dossiers montés. Avant une mise à jour, arrêtez les écritures et sauvegardez ensemble la base et les archives ; conservez les secrets séparément. Mettez ensuite le code à jour en préservant votre `.env` et votre adaptation du port, reconstruisez, migrez et redémarrez :
+
+```sh
+docker compose stop claire-app claire-worker
+# Mettre à jour le code ici, après sauvegarde.
+docker compose build
+docker compose run --rm migrate
+docker compose up -d claire-app claire-worker
+```
+
+Les ZIP préservent des souvenirs individuels, pas l'ensemble des comptes et conversations. Les sauvegardes automatiques et la restauration complète sur un nouvel hôte restent à développer/valider. Voir le [guide de préservation](docs/recovery.md).
 
 ## Quick development start
 
