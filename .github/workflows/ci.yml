@@ -48,7 +48,8 @@ jobs:
       - run: uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt
       - run: uvx pip-audit -r /tmp/requirements.txt
   frontend:
-    runs-on: ubuntu-latest
+    # Keep browser system packages aligned with the locked Playwright release.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/frontend
