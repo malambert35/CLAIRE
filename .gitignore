@@ -1,4 +1,5 @@
 .env
+.env.aio
 .venv/
 __pycache__/
 .pytest_cache/

@@ -2,6 +2,8 @@
 
 ## 0.1.0 — unreleased
 
+- Experimental Unraid all-in-one build target: PostgreSQL 18/pgvector, web and worker in one container, automatic technical credentials/migrations, private database binding, coordinated shutdown, restart persistence and dedicated CI lifecycle/security checks.
+
 - Replace the Debian runtime with digest-pinned Python 3.12 Alpine 3.24 and matching musl wheels; apply available OS fixes without suppressing Trivy findings. Add installed-runtime CI checks under non-root/read-only restrictions.
 
 - Portable ZIP import with verified preview and checksum-bound confirmation, preserved history/provenance and a new private copy without overwriting existing memories.

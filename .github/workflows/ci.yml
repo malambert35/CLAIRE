@@ -3,6 +3,28 @@ on: [push, pull_request, workflow_call]
 permissions:
   contents: read
 jobs:
+  all-in-one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target aio -t claire:aio-ci .
+      - name: Verify AIO initialization, persistence and process supervision
+        run: python scripts/aio_smoke.py --image claire:aio-ci
+      - name: Scan AIO image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.2
+          image-ref: claire:aio-ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          format: json
+          output: trivy-aio.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aio-image-security
+          path: trivy-aio.json
   backend:
     runs-on: ubuntu-latest
     services:

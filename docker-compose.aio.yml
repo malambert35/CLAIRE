@@ -1,0 +1,29 @@
+name: claire-aio
+services:
+  claire:
+    build:
+      context: .
+      target: aio
+    image: claire:aio
+    container_name: claire-aio
+    restart: unless-stopped
+    stop_grace_period: 120s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /run:rw,noexec,nosuid,size=32m
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID, KILL]
+    ports:
+      - "${CLAIRE_BIND_IP:-127.0.0.1}:${CLAIRE_PORT:-8000}:8000"
+    volumes:
+      - ${CLAIRE_AIO_DATA_PATH:-./data/aio}:/data
+    environment:
+      CLAIRE_ORIGIN: ${CLAIRE_ORIGIN:-https://localhost}
+      CLAIRE_SECURE_COOKIES: ${CLAIRE_SECURE_COOKIES:-true}
+      CLAIRE_LLM_BASE_URL: ${CLAIRE_LLM_BASE_URL:-http://host.docker.internal:11434}
+      CLAIRE_LLM_MODEL: ${CLAIRE_LLM_MODEL:-qwen3:8b}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    mem_limit: 2g
+    cpus: 2

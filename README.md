@@ -4,7 +4,7 @@
 
 A family-owned knowledge preservation platform with a replaceable AI layer.
 
-Installation : [Windows local](#windows-local-start) · [Guide Unraid en français](#déploiement-de-test-sur-unraid) · [Développement](#quick-development-start)
+Installation : [Unraid tout-en-un](#unraid--mode-tout-en-un) · [Windows local](#windows-local-start) · [Compose multi-conteneurs](#déploiement-de-test-sur-unraid) · [Développement](#quick-development-start)
 
 The memory workspace creates and edits real Markdown/JSON archives with UUID provenance, immutable revisions, private/family visibility, source attribution, revision history, recoverable deletion, title search and a date-sorted view. Owner-only history preserves previous private versions when the current story is shared. PostgreSQL row-level policies and application checks enforce access. An offline recovery command reconciles the catalogue after an interrupted write.
 
@@ -28,7 +28,63 @@ Local chat defaults to Ollama at `http://127.0.0.1:11434` with `qwen3:8b`. Start
 
 Read the [architecture and six-phase checklist](docs/architecture.md), [installation guide](docs/install.md), [security model](SECURITY.md), and [recovery plan](docs/recovery.md).
 
+## Unraid — mode tout-en-un
+
+**Un seul conteneur**, un port web et un dossier appdata : cette variante regroupe CLAIRE, PostgreSQL 18 avec pgvector et le worker. L'initialisation de la base, les migrations et les identifiants techniques sont automatiques. Ollama reste sur votre serveur existant.
+
+Cette variante est disponible pour essais, construite localement ; aucune image AIO n'est encore publiée sur Docker Hub. Les tests Docker couvrent le démarrage, la persistance, le redémarrage après interruption et l'arrêt des services. Une installation sur votre Unraid reste à valider. Utilisez **un nouveau dossier dédié**, sans y copier une ancienne base PostgreSQL 17.
+
+Depuis le dossier du dépôt sur Unraid :
+
+```sh
+cp .env.aio.example .env.aio
+```
+
+Modifiez `.env.aio` avec vos adresses (exemple HTTP local) :
+
+```dotenv
+CLAIRE_AIO_DATA_PATH=/mnt/user/appdata/claire-aio
+CLAIRE_BIND_IP=192.168.1.50
+CLAIRE_PORT=8000
+CLAIRE_ORIGIN=http://192.168.1.50:8000
+CLAIRE_SECURE_COOKIES=false
+CLAIRE_LLM_BASE_URL=http://192.168.1.60:11434
+CLAIRE_LLM_MODEL=qwen3:8b
+```
+
+`192.168.1.50` est ici l'adresse d'Unraid ; `192.168.1.60` celle d'Ollama. Ollama doit être joignable depuis Docker et avoir le modèle installé. Le port interne de CLAIRE reste `8000`. PostgreSQL écoute uniquement à l'intérieur du conteneur ; **ne publiez pas le port 5432**.
+
+```sh
+docker compose --env-file .env.aio -f docker-compose.aio.yml up -d --build
+docker compose --env-file .env.aio -f docker-compose.aio.yml ps
+docker logs --tail=100 claire-aio
+```
+
+Attendez l'état `healthy`, puis créez votre compte avec cette commande unique :
+
+```sh
+docker exec -it claire-aio python -m claire.aio create-user vous@example.ca --family-name 'Ma famille' --role family_admin
+```
+
+Entrez un mot de passe d'au moins 14 caractères, puis connectez-vous à `http://192.168.1.50:8000`. Il n'y a pas de compte par défaut. Conservez l'identifiant de famille affiché : pour un autre membre, utilisez `--family-id UUID` au lieu de créer une nouvelle famille.
+
+**N'utilisez pas les étapes de création manuelle des secrets ou de PostgreSQL du guide multi-conteneurs ci-dessous pour le mode AIO.** N'appliquez pas non plus `PUID`, `PGID` ou un utilisateur forcé au conteneur AIO : son coordinateur initialise les permissions comme root, puis lance le serveur et le worker sous UID 10001, et PostgreSQL sous son propre utilisateur. Aucun mode `privileged` ni socket Docker n'est nécessaire.
+
+Les données se trouvent dans le seul volume `/data` :
+
+| Sous-dossier | Contenu |
+| --- | --- |
+| `archive/` | Textes Markdown, métadonnées et versions des souvenirs |
+| `postgres/` | Comptes, conversations et catalogue PostgreSQL 18 |
+| `secrets/` | Identifiant technique généré automatiquement, réservé au coordinateur |
+
+Pour arrêter proprement : `docker stop --time 120 claire-aio`. Pour redémarrer : `docker start claire-aio`. Après changement de configuration ou mise à jour du code, relancez la commande Compose `up -d --build`. Sauvegardez **tout le dossier appdata, conteneur arrêté**, en préservant propriétaires et permissions ; protégez cette copie, car elle contient les données privées et le secret technique. Ne partagez pas ce dossier par SMB. L'import ZIP permet de récupérer des souvenirs comme nouvelles copies privées, pas de migrer automatiquement les comptes ou conversations de l'ancien mode.
+
+Voir le [guide AIO détaillé](docs/all-in-one.md) pour les réglages Unraid manuels, les limites et le dépannage.
+
 ## Déploiement de test sur Unraid
+
+Cette section décrit l'architecture **multi-conteneurs** historique. Pour le mode à un seul conteneur, utilisez la section précédente et `docker-compose.aio.yml` seul.
 
 Les instructions ci-dessous utilisent **Docker Compose**, depuis le terminal Unraid. Docker et Compose v2 doivent être disponibles (`docker compose version`). L'installation complète sur Unraid et la restauration après perte du serveur restent à valider : conservez vos originaux ailleurs pendant les essais.
 
