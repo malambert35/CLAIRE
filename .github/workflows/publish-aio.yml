@@ -1,0 +1,52 @@
+name: Publish AIO preview to Docker Hub
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-aio-preview
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the AIO image to be published
+        run: docker build --target aio --label "org.opencontainers.image.revision=$GITHUB_SHA" --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -t claire:aio-publish .
+      - name: Test the exact image
+        run: python scripts/aio_smoke.py --image claire:aio-publish
+      - name: Scan the exact image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.2
+          image-ref: claire:aio-publish
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          format: json
+          output: trivy-aio-publish.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aio-publish-security
+          path: trivy-aio-publish.json
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push tested preview image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+          IMAGE="$DOCKERHUB_USERNAME/claire"
+          VERSION="aio-${GITHUB_SHA:0:12}"
+          docker tag claire:aio-publish "$IMAGE:$VERSION"
+          docker push "$IMAGE:$VERSION"
+          docker tag claire:aio-publish "$IMAGE:aio"
+          docker push "$IMAGE:aio"
+          printf '## AIO preview published\n\nTags: `aio` and `%s`. Architecture: linux/amd64 (Unraid x86-64). This is a development preview, not a stable production release.\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
