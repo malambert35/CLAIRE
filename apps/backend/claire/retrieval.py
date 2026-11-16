@@ -74,6 +74,14 @@ def words(value):
     return set(re.findall(r"[a-z0-9]{2,}", value)) - STOP
 
 
+def excerpt(content, terms):
+    if len(content) <= 2400:
+        return content
+    blocks = [(start, content[start : start + 1100]) for start in range(0, len(content), 900)]
+    selected = sorted(blocks, key=lambda item: len(terms & words(item[1])), reverse=True)[:2]
+    return "\n[…]\n".join(text for _, text in sorted(selected))
+
+
 def retrieve(db, user, settings, question):
     archive = Archive(settings.data_dir)
     terms = words(question)
@@ -110,7 +118,7 @@ def retrieve(db, user, settings, question):
                 "title": metadata.title,
                 "revision": metadata.revision,
                 "verification": metadata.verification,
-                "content": content[:2400],
+                "content": excerpt(content, terms),
             }
         )
     return result

@@ -1,7 +1,7 @@
 export const memoryText = {
   en: {
     new: "New memory",
-    search: "Search titles",
+    search: "Search titles and content",
     active: "Memories",
     trash: "Recently deleted",
     title: "Title",
@@ -58,7 +58,7 @@ export const memoryText = {
   },
   fr: {
     new: "Nouveau souvenir",
-    search: "Rechercher dans les titres",
+    search: "Rechercher dans les titres et le contenu",
     active: "Souvenirs",
     trash: "Souvenirs supprimés",
     title: "Titre",

@@ -4,17 +4,18 @@ Le mode AIO combine le serveur web, PostgreSQL 18/pgvector et le worker. Le Comp
 
 ## Installation sans Compose
 
-L'image doit encore être construite depuis les sources sur la machine Docker cible :
+L'image de test linux/amd64 est publiée sur Docker Hub. Dans Unraid, utilisez **`malambert35/claire:aio`** dans le champ Repository. Pour la télécharger depuis un terminal :
 
 ```sh
-docker build --target aio -t claire:aio .
+docker pull malambert35/claire:aio
 ```
 
-Pour une configuration manuelle dans Unraid, utilisez l'image locale `claire:aio` et ces réglages :
+Pour une configuration manuelle dans Unraid, utilisez ces réglages :
 
 | Champ | Valeur |
 | --- | --- |
 | Nom du conteneur | `claire-aio` |
+| Repository | `malambert35/claire:aio` |
 | Réseau | Bridge |
 | Port conteneur | `8000` TCP |
 | Port hôte | `8000`, ou un port libre correspondant à l'origine |
@@ -67,4 +68,6 @@ docker exec claire-aio python -m claire.aio health
 
 Le test `scripts/aio_smoke.py --image claire:aio` crée un volume jetable distinct et vérifie l'initialisation, la création de comptes, l'isolation entre familles, les privilèges SQL, les permissions de fichiers, pgvector, le remplacement du conteneur, la récupération après arrêt brutal et l'arrêt de l'ensemble après panne du worker. Il ne doit pas être utilisé comme preuve d'une restauration complète sur Unraid. La CI construit et scanne cette variante séparément de l'image standard.
 
-Ollama, ses modèles et son éventuel GPU restent externes. Aucun mécanisme de sauvegarde automatique ou assistant web de premier compte n'est inclus dans ce jalon. La variante AIO n'a pas encore de publication Docker Hub ; l'image standard construite sans `--target aio` reste distincte.
+Ollama, ses modèles et son éventuel GPU restent externes. Aucun mécanisme de sauvegarde automatique ou assistant web de premier compte n'est inclus dans ce jalon. L'image standard construite sans `--target aio` reste distincte. La publication AIO est une préversion linux/amd64, pas une version stable multi-architecture.
+
+Le workflow manuel **Publish AIO preview to Docker Hub** construit, teste et scanne la même image avant de la pousser. Il utilise les secrets GitHub `DOCKERHUB_USERNAME` et `DOCKERHUB_TOKEN` ; le jeton doit disposer de Read & Write sur le dépôt. Il publie le tag mobile `aio` et un tag `aio-<12 premiers caractères du commit>`. La première publication est `aio-7586e3136408`. Pour une construction locale indépendante : `docker build --target aio -t claire:aio-local .`.

@@ -200,3 +200,13 @@
     grid-template-columns: 1fr;
   }
 }
+.document-import label {
+  display: block;
+  margin: 16px 0;
+}
+.document-import input:not([type="checkbox"]),
+.document-import select {
+  display: block;
+  max-width: 100%;
+  margin-top: 8px;
+}

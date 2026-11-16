@@ -12,7 +12,9 @@ Owners can download a memory and all its revisions as a portable ZIP with Markdo
 
 Import a CLAIRE ZIP from the memory list with verification, preview and explicit confirmation. It creates a new private copy with revision history and origin references; it never overwrites an existing memory or restores old sharing grants.
 
-**Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow and streaming local Ollama chat are implemented and tested. Semantic retrieval, document ingestion, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
+**Status: 0.1.0 under development, not production-ready.** Identity, the memory workflow, text/Markdown document import and streaming local Ollama chat are implemented and tested. Semantic retrieval, PDF/Word ingestion, OCR, integrations, automated backup and succession are not yet available. No fake AI or persistence responses are provided.
+
+**Documents:** open **Documents and Archives → Import document**, choose a UTF-8 `.txt`, `.md` or `.markdown` file (maximum 8 KiB and 6,000 characters), review its text and visibility, then confirm. Documents are private by default. Search now matches titles and content. Imported documents are immediately eligible for local chat retrieval; no model training or separate indexing step is required. See [document import and its limits](docs/documents.md).
 
 ## Windows local start
 
@@ -32,7 +34,7 @@ Read the [architecture and six-phase checklist](docs/architecture.md), [installa
 
 **Un seul conteneur**, un port web et un dossier appdata : cette variante regroupe CLAIRE, PostgreSQL 18 avec pgvector et le worker. L'initialisation de la base, les migrations et les identifiants techniques sont automatiques. Ollama reste sur votre serveur existant.
 
-Cette variante est disponible pour essais, construite localement ; aucune image AIO n'est encore publiée sur Docker Hub. Les tests Docker couvrent le démarrage, la persistance, le redémarrage après interruption et l'arrêt des services. Une installation sur votre Unraid reste à valider. Utilisez **un nouveau dossier dédié**, sans y copier une ancienne base PostgreSQL 17.
+L'image de test **`malambert35/claire:aio`** est disponible sur [Docker Hub](https://hub.docker.com/r/malambert35/claire/tags), pour **linux/amd64 (Unraid x86-64)**. Aucune compilation locale n'est nécessaire. Les tests Docker couvrent le démarrage, la persistance, le redémarrage après interruption et l'arrêt des services. Une installation sur votre Unraid reste à valider. Utilisez **un nouveau dossier dédié**, sans y copier une ancienne base PostgreSQL 17.
 
 Depuis le dossier du dépôt sur Unraid :
 
@@ -43,6 +45,7 @@ cp .env.aio.example .env.aio
 Modifiez `.env.aio` avec vos adresses (exemple HTTP local) :
 
 ```dotenv
+CLAIRE_AIO_IMAGE=malambert35/claire:aio
 CLAIRE_AIO_DATA_PATH=/mnt/user/appdata/claire-aio
 CLAIRE_BIND_IP=192.168.1.50
 CLAIRE_PORT=8000
@@ -55,7 +58,8 @@ CLAIRE_LLM_MODEL=qwen3:8b
 `192.168.1.50` est ici l'adresse d'Unraid ; `192.168.1.60` celle d'Ollama. Ollama doit être joignable depuis Docker et avoir le modèle installé. Le port interne de CLAIRE reste `8000`. PostgreSQL écoute uniquement à l'intérieur du conteneur ; **ne publiez pas le port 5432**.
 
 ```sh
-docker compose --env-file .env.aio -f docker-compose.aio.yml up -d --build
+docker compose --env-file .env.aio -f docker-compose.aio.yml pull
+docker compose --env-file .env.aio -f docker-compose.aio.yml up -d --no-build
 docker compose --env-file .env.aio -f docker-compose.aio.yml ps
 docker logs --tail=100 claire-aio
 ```
@@ -78,7 +82,9 @@ Les données se trouvent dans le seul volume `/data` :
 | `postgres/` | Comptes, conversations et catalogue PostgreSQL 18 |
 | `secrets/` | Identifiant technique généré automatiquement, réservé au coordinateur |
 
-Pour arrêter proprement : `docker stop --time 120 claire-aio`. Pour redémarrer : `docker start claire-aio`. Après changement de configuration ou mise à jour du code, relancez la commande Compose `up -d --build`. Sauvegardez **tout le dossier appdata, conteneur arrêté**, en préservant propriétaires et permissions ; protégez cette copie, car elle contient les données privées et le secret technique. Ne partagez pas ce dossier par SMB. L'import ZIP permet de récupérer des souvenirs comme nouvelles copies privées, pas de migrer automatiquement les comptes ou conversations de l'ancien mode.
+Pour arrêter proprement : `docker stop --time 120 claire-aio`. Pour redémarrer : `docker start claire-aio`. Après sauvegarde, mettez l'image à jour avec les commandes Compose `pull` puis `up -d --no-build` ci-dessus. Sauvegardez **tout le dossier appdata, conteneur arrêté**, en préservant propriétaires et permissions ; protégez cette copie, car elle contient les données privées et le secret technique. Ne partagez pas ce dossier par SMB. L'import ZIP permet de récupérer des souvenirs comme nouvelles copies privées, pas de migrer automatiquement les comptes ou conversations de l'ancien mode.
+
+Le tag `aio` suit les publications de test ; la première publication porte aussi le tag figé `aio-7586e3136408`. Pour construire vos propres sources, définissez `CLAIRE_AIO_IMAGE=claire:aio-local` et utilisez `up -d --build` au lieu de `pull`.
 
 Voir le [guide AIO détaillé](docs/all-in-one.md) pour les réglages Unraid manuels, les limites et le dépannage.
 

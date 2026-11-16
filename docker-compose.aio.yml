@@ -4,7 +4,7 @@ services:
     build:
       context: .
       target: aio
-    image: claire:aio
+    image: ${CLAIRE_AIO_IMAGE:-malambert35/claire:aio}
     container_name: claire-aio
     restart: unless-stopped
     stop_grace_period: 120s

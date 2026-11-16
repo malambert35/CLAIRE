@@ -75,6 +75,56 @@ def draft(**changes):
     }
 
 
+def test_text_document_import_search_and_visibility(household):
+    clients, _ = household
+    alice, bob = clients["alice"], clients["bob"]
+    body = {
+        "filename": "lettre.md",
+        "title": "Une lettre",
+        "content": "Texte original : **Boréal**.",
+        "confirmed": True,
+    }
+    response = alice.post("/api/v1/memories/documents", json=body)
+    assert response.status_code == 201
+    document = response.json()
+    assert document["memory_type"] == "document" and document["visibility"] == "private"
+    assert document["verification"] == "uncertain"
+    assert "lettre.md" in document["sources"][-1]["reference"]
+    query = "/api/v1/memories?kind=document&q=BORÉAL"
+    assert [item["id"] for item in alice.get(query).json()] == [document["id"]]
+    assert bob.get(query).json() == []
+    assert clients["outsider"].get(query).json() == []
+    path = f"/api/v1/memories/{document['id']}"
+    edited = alice.put(
+        path,
+        json=draft(title="Une lettre", content=body["content"], visibility="family", expected_revision=1),
+    )
+    assert edited.status_code == 200 and edited.json()["memory_type"] == "document"
+    assert bob.get(query).json()[0]["id"] == document["id"]
+    assert bob.get(path + "/history").status_code == 403
+    alice.post(path + "/delete", json={"confirmed": True, "expected_revision": 2})
+    assert bob.get(query).json() == [] and alice.get(query).json() == []
+    assert alice.get(query + "&deleted=true").json()[0]["id"] == document["id"]
+
+
+def test_document_input_limits_confirmation_and_reader_role(household):
+    clients, _ = household
+    body = {"filename": "letter.txt", "title": "Letter", "content": "Original testimony."}
+    path = "/api/v1/memories/documents"
+    assert clients["alice"].post(path, json=body).status_code == 422
+    body["confirmed"] = True
+    assert clients["reader"].post(path, json=body).status_code == 403
+    for changes in (
+        {"filename": "file.pdf"},
+        {"filename": "../file.md"},
+        {"content": "binary\x00data"},
+        {"content": "x" * 6001},
+        {"content": "é" * 5000},
+    ):
+        assert clients["alice"].post(path, json={**body, **changes}).status_code == 422
+    assert clients["alice"].get("/api/v1/memories?kind=document").json() == []
+
+
 def test_import_preview_confirmation_private_copy_and_history(household, tmp_path):
     clients, _ = household
     alice, bob = clients["alice"], clients["bob"]

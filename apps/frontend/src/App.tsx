@@ -29,7 +29,7 @@ const icons = [
   CircleCheck,
   Settings,
 ];
-const availableSections = new Set([0, 1, 2, 5]);
+const availableSections = new Set([0, 1, 2, 3, 5]);
 
 export default function App() {
   const [lang, setLang] = useState<"en" | "fr">("en");
@@ -135,12 +135,13 @@ export default function App() {
           {error && <p role="alert">{error}</p>}
           {page === 0 ? (
             <Chat key={user.id} user={user} lang={lang} />
-          ) : page === 1 || page === 2 ? (
+          ) : page === 1 || page === 2 || page === 3 ? (
             <Memories
               key={`${user.id}-${page}`}
               user={user}
               lang={lang}
               timeline={page === 2}
+              documents={page === 3}
             />
           ) : page === 5 ? (
             <div className="members">

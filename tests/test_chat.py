@@ -118,6 +118,30 @@ def test_provider_failure_is_not_reported_as_saved_success(chat_household):
         assert db.get(Conversation, conversation["id"]).active_run is None
 
 
+def test_chat_retrieves_matching_passage_late_in_document(chat_household):
+    _, alice, _, provider = chat_household
+    response = alice.post(
+        "/api/v1/memories/documents",
+        json={
+            "filename": "journal.txt",
+            "title": "Journal du bateau",
+            "confirmed": True,
+            "content": "Préambule. " * 300 + "Le code Orion est ZEPHYR742.",
+        },
+    )
+    assert response.status_code == 201
+    conversation = alice.post("/api/v1/conversations", json={"title": "Document"}).json()
+    result = alice.post(
+        f"/api/v1/conversations/{conversation['id']}/messages",
+        json={
+            "content": "Quel est le code Orion ?",
+            "model": "synthetic-local-model",
+        },
+    )
+    assert "event: done" in result.text
+    assert "ZEPHYR742" in provider.prompts[-1][0]["content"]
+
+
 def test_chat_retrieves_current_authorized_memories(chat_household):
     _, alice, bob, provider = chat_household
 
@@ -185,16 +209,23 @@ def test_real_ollama_answers_from_new_memory(chat_household):
             yield delta
 
     provider.stream = real_stream
-    created = alice.post("/api/v1/memories", json={
-        "title": "Code du bateau Orion", "content": "Le code fictif du bateau Orion est LUMI742.",
-        "confirmed": True,
-    })
+    created = alice.post(
+        "/api/v1/memories",
+        json={
+            "title": "Code du bateau Orion",
+            "content": "Le code fictif du bateau Orion est LUMI742.",
+            "confirmed": True,
+        },
+    )
     assert created.status_code == 201
     cid = alice.post("/api/v1/conversations", json={"title": "Orion"}).json()["id"]
-    response = alice.post(f"/api/v1/conversations/{cid}/messages", json={
-        "content": "Quel est le code du bateau Orion ? Cite le titre du souvenir.",
-        "model": "synthetic-local-model",
-    })
+    response = alice.post(
+        f"/api/v1/conversations/{cid}/messages",
+        json={
+            "content": "Quel est le code du bateau Orion ? Cite le titre du souvenir.",
+            "model": "synthetic-local-model",
+        },
+    )
     assert "event: done" in response.text
     answer = alice.get(f"/api/v1/conversations/{cid}").json()["messages"][-1]["content"]
     assert "LUMI742" in answer

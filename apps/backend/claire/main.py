@@ -140,6 +140,7 @@ def create_app(settings: Settings | None = None, provider=None):
             "identity": True,
             "family_members": True,
             "memories": True,
+            "documents": True,
             "chat": True,
             "remote_ai": False,
             "integrations": False,

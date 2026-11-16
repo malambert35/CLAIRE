@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from datetime import date
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -42,6 +42,29 @@ class MemoryInput(BaseModel):
 
 class MemoryEdit(MemoryInput):
     expected_revision: int = Field(ge=1)
+
+
+class DocumentInput(MemoryInput):
+    filename: str = Field(min_length=1, max_length=200)
+    verification: Literal["recollection", "verified", "uncertain", "ai_interpretation"] = "uncertain"
+
+    @field_validator("filename")
+    @classmethod
+    def text_filename(cls, value):
+        if any(char in value for char in ("/", "\\", "\x00")) or not value.lower().endswith(
+            (".txt", ".md", ".markdown")
+        ):
+            raise ValueError("Upload a plain UTF-8 .txt or Markdown file")
+        return value
+
+    @field_validator("content")
+    @classmethod
+    def plain_text(cls, value):
+        if len(value.encode("utf-8")) > 8192:
+            raise ValueError("Text document exceeds 8 KiB")
+        if not value.strip() or any(ord(char) < 32 and char not in "\t\r\n" for char in value):
+            raise ValueError("Document must contain plain text")
+        return value
 
 
 class RevisionAction(BaseModel):
@@ -138,16 +161,58 @@ def memory_router(engine, settings):
         offset: int = Query(default=0, ge=0),
         limit: int = Query(default=50, ge=1, le=100),
         sort: Literal["updated", "event"] = "updated",
+        kind: Literal["all", "document"] = "all",
     ):
         with access(request) as (db, user):
             query = select(Memory).where(*visible(user), Memory.deleted == deleted)
             if deleted:
                 query = query.where(Memory.owner_id == user.id)
-            if q:
-                query = query.where(Memory.title.icontains(q, autoescape=True))
             order = Memory.event_date.asc().nullslast() if sort == "event" else Memory.updated_at.desc()
-            rows = db.scalars(query.order_by(order, Memory.id).offset(offset).limit(limit)).all()
-            return [result(*read(row, user), user) for row in rows]
+            query = query.order_by(order, Memory.id)
+            if not q and kind == "all":
+                rows = db.scalars(query.offset(offset).limit(limit)).all()
+                return [result(*read(row, user), user) for row in rows]
+            # Filter authoritative current content after ACL checks, before pagination.
+            matches, skipped = [], 0
+            for row in db.scalars(query.execution_options(yield_per=50)):
+                metadata, content = read(row, user)
+                if kind == "document" and metadata.memory_type != "document":
+                    continue
+                if q.casefold() not in (metadata.title + "\n" + content).casefold():
+                    continue
+                if skipped < offset:
+                    skipped += 1
+                    continue
+                matches.append(result(metadata, content, user))
+                if len(matches) == limit:
+                    break
+            return matches
+
+    @router.post("/documents", status_code=201)
+    def import_document(body: DocumentInput, request: Request):
+        with access(request) as (db, user):
+            writable(user, body.confirmed)
+            origin = Source(
+                id=uuid4(),
+                reference=(
+                    f"Imported text: {body.filename}; UTF-8 SHA-256: {checksum(body.content.encode('utf-8'))}"
+                ),
+                relationship="context",
+            )
+            metadata = archive.create(
+                UUID(user.family_id),
+                UUID(user.id),
+                body.title,
+                body.content,
+                memory_type="document",
+                visibility=body.visibility,
+                event_date=body.event_date,
+                verification=body.verification,
+                sources=[*body.sources, origin],
+            )
+            row = Memory(id=str(metadata.id), family_id=user.family_id, owner_id=user.id)
+            project(db, row, metadata, "document_imported", user)
+            return result(metadata, body.content, user)
 
     @router.post("", status_code=201)
     def create(body: MemoryInput, request: Request):
@@ -241,9 +306,13 @@ def memory_router(engine, settings):
                 raise HTTPException(403, "Only the owner may export private revision history")
             metadata, _ = read(row, user)
             data = package_memory(archive, metadata)
-            return Response(data, media_type="application/zip", headers={
-                "Content-Disposition": f'attachment; filename="claire-memory-{memory_id}.zip"',
-                "Cache-Control": "no-store",
-            })
+            return Response(
+                data,
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": f'attachment; filename="claire-memory-{memory_id}.zip"',
+                    "Cache-Control": "no-store",
+                },
+            )
 
     return router

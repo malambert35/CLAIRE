@@ -4,6 +4,7 @@ import { api, type Identity } from "./api";
 import { memoryText } from "./memoryText";
 import "./memories.css";
 import { ImportMemory } from "./ImportMemory";
+import { ImportDocument } from "./ImportDocument";
 
 type Source = {
   id: string;
@@ -230,10 +231,12 @@ export function Memories({
   user,
   lang,
   timeline = false,
+  documents = false,
 }: {
   user: Identity;
   lang: "en" | "fr";
   timeline?: boolean;
+  documents?: boolean;
 }) {
   const t = memoryText[lang];
   const [items, setItems] = useState<Memory[]>([]);
@@ -260,7 +263,7 @@ export function Memories({
     setError("");
     setItems([]);
     api<Memory[]>(
-      `/memories?deleted=${trash}&q=${encodeURIComponent(search)}&offset=${offset}&limit=50&sort=${timeline ? "event" : "updated"}`,
+      `/memories?deleted=${trash}&q=${encodeURIComponent(search)}&offset=${offset}&limit=50&sort=${timeline ? "event" : "updated"}&kind=${documents ? "document" : "all"}`,
       { signal: controller.signal },
     )
       .then(setItems)
@@ -271,7 +274,7 @@ export function Memories({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [trash, search, offset, reload, timeline]);
+  }, [trash, search, offset, reload, timeline, documents]);
   const headers = {
     "Content-Type": "application/json",
     "X-CSRF-Token": user.csrf_token,
@@ -507,7 +510,7 @@ export function Memories({
                 {t.trash}
               </button>
             </div>
-            {canCreate && (
+            {canCreate && !documents && (
               <button
                 className="primary"
                 onClick={() => {
@@ -520,6 +523,17 @@ export function Memories({
               </button>
             )}
           </div>
+          {canCreate && documents && (
+            <ImportDocument
+              user={user}
+              lang={lang}
+              onImported={(memory) => {
+                setSelected(memory);
+                setNotice("saved");
+                setReload((value) => value + 1);
+              }}
+            />
+          )}
           {canCreate && (
             <ImportMemory
               user={user}
@@ -580,9 +594,23 @@ export function Memories({
             !error && (
               <div className="empty">
                 <h2>
-                  {!trash && !search && offset === 0 ? t.empty : t.noResults}
+                  {!trash && !search && offset === 0
+                    ? documents
+                      ? lang === "fr"
+                        ? "Votre bibliothèque de documents"
+                        : "Your document library"
+                      : t.empty
+                    : t.noResults}
                 </h2>
-                {!trash && !search && <p>{t.intro}</p>}
+                {!trash && !search && (
+                  <p>
+                    {documents
+                      ? lang === "fr"
+                        ? "Importez un texte ou un fichier Markdown pour le conserver et le consulter avec CLAIRE."
+                        : "Import text or Markdown to preserve it and consult it with CLAIRE."
+                      : t.intro}
+                  </p>
+                )}
               </div>
             )
           )}

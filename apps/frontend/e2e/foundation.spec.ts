@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+test.afterEach(async ({ page }, info) => {
+  if (info.status !== info.expectedStatus)
+    await page.screenshot({
+      path: `../../data/failure-${info.testId.replace(/[^a-z0-9]/gi, "")}.png`,
+      fullPage: true,
+    });
+});
+
 test("sign in, family navigation, localization, theme and revocation", async ({
   page,
 }) => {
@@ -91,7 +99,9 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     "We made crêpes together.",
   );
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download all versions (.zip)", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Download all versions (.zip)", exact: true })
+    .click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^claire-memory-.*\.zip$/);
   await download.saveAs("../../data/memory-export-smoke.zip");
@@ -123,22 +133,109 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     page.getByRole("button", { name: /The summer of 1962/ }),
   ).toBeVisible();
   await page.getByRole("button", { name: /The summer of 1962/ }).click();
-  await expect(page.getByRole("button", { name: "Télécharger toutes les versions (.zip)", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Télécharger toutes les versions (.zip)",
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.screenshot({
     path: "../../data/memory-mobile.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Retour aux souvenirs", exact: true }).click();
-  await page.getByRole("button", { name: "Importer un souvenir (.zip)", exact: true }).click();
-  await page.getByLabel("Fichier ZIP CLAIRE").setInputFiles("../../data/memory-export-smoke.zip");
-  await page.getByRole("button", { name: "Vérifier et prévisualiser", exact: true }).click();
-  await expect(page.getByText("2 versions · copie privée", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Créer la copie privée", exact: true })).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Retour aux souvenirs", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Importer un souvenir (.zip)", exact: true })
+    .click();
+  await page
+    .getByLabel("Fichier ZIP CLAIRE")
+    .setInputFiles("../../data/memory-export-smoke.zip");
+  await page
+    .getByRole("button", { name: "Vérifier et prévisualiser", exact: true })
+    .click();
+  await expect(
+    page.getByText("2 versions · copie privée", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Créer la copie privée", exact: true }),
+  ).toBeDisabled();
   await page.getByRole("checkbox", { name: /Je confirme la création/ }).check();
-  await page.screenshot({ path: "../../data/import-preview-mobile.png", fullPage: true });
-  await page.getByRole("button", { name: "Créer la copie privée", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Souvenir enregistré dans les archives.");
+  await page.screenshot({
+    path: "../../data/import-preview-mobile.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Créer la copie privée", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Souvenir enregistré dans les archives.",
+  );
   await expect(page.locator(".markdown strong")).toHaveText("1963");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("import and search a private document", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Email", { exact: true }).fill("alice@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("synthetic-browser-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Documents and Archives", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Import document", exact: true })
+    .click();
+  await page
+    .getByLabel("Text or Markdown file")
+    .setInputFiles({
+      name: "lettre.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from(
+        "# Lettre familiale\nLe jardin contient des tournesols.",
+      ),
+    });
+  await expect(
+    page.getByRole("button", { name: "Save document", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByLabel("Document visibility")).toHaveValue("private");
+  await page
+    .getByRole("checkbox", {
+      name: "I confirm this document and its visibility.",
+    })
+    .check();
+  await page.screenshot({
+    path: "../../data/document-preview.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Save document", exact: true })
+    .click();
+  await expect(page.locator(".markdown")).toContainText("tournesols");
+  await page
+    .getByRole("button", { name: "Back to memories", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Search titles and content", exact: true })
+    .fill("tournesols");
+  await page
+    .getByRole("button", { name: "Search titles and content", exact: true })
+    .click();
+  await page.getByRole("button", { name: /lettre/ }).click();
+  await expect(page.locator(".markdown")).toContainText("tournesols");
+  await page.getByLabel("Language").selectOption("fr");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: "../../data/document-mobile.png",
+    fullPage: true,
+  });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
