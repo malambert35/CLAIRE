@@ -53,6 +53,10 @@ test("sign in, family navigation, localization, theme and revocation", async ({
 test("memory persists through reload, revisions, deletion and restoration", async ({
   page,
 }) => {
+  // LAN HTTP origins, unlike localhost, do not expose randomUUID.
+  await page.addInitScript(() => {
+    Object.defineProperty(crypto, "randomUUID", { value: undefined });
+  });
   await page.goto("/");
   await page.getByLabel("Email", { exact: true }).fill("alice@example.test");
   await page
@@ -74,7 +78,7 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     .getByLabel("I confirm this content and who can read it.", { exact: true })
     .check();
   await page.getByRole("button", { name: "Save memory", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator(".saved-notice")).toHaveText(
     "Memory saved to the archive.",
   );
   await expect(page.locator(".markdown strong")).toHaveText("crêpes");
@@ -88,7 +92,7 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     .getByLabel("I confirm this content and who can read it.", { exact: true })
     .check();
   await page.getByRole("button", { name: "Save memory", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator(".saved-notice")).toHaveText(
     "Memory saved to the archive.",
   );
   await page
@@ -114,7 +118,7 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     .getByRole("button", { name: "Move to deleted", exact: true })
     .click();
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator(".saved-notice")).toContainText(
     "Memory moved to deleted",
   );
   await page
@@ -125,7 +129,7 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
     .getByRole("button", { name: "Restore memory", exact: true })
     .click();
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Memory restored.");
+  await expect(page.locator(".saved-notice")).toHaveText("Memory restored.");
   await page.getByRole("button", { name: "Memories", exact: true }).click();
   await page.getByLabel("Language").selectOption("fr");
   await page.setViewportSize({ width: 390, height: 844 });
@@ -169,7 +173,7 @@ test("memory persists through reload, revisions, deletion and restoration", asyn
   await page
     .getByRole("button", { name: "Créer la copie privée", exact: true })
     .click();
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator(".saved-notice")).toHaveText(
     "Souvenir enregistré dans les archives.",
   );
   await expect(page.locator(".markdown strong")).toHaveText("1963");
@@ -193,15 +197,13 @@ test("import and search a private document", async ({ page }) => {
   await page
     .getByRole("button", { name: "Import document", exact: true })
     .click();
-  await page
-    .getByLabel("Text or Markdown file")
-    .setInputFiles({
-      name: "lettre.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from(
-        "# Lettre familiale\nLe jardin contient des tournesols.",
-      ),
-    });
+  await page.getByLabel("Text or Markdown file").setInputFiles({
+    name: "lettre.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "# Lettre familiale\nLe jardin contient des tournesols.",
+    ),
+  });
   await expect(
     page.getByRole("button", { name: "Save document", exact: true }),
   ).toBeDisabled();

@@ -51,7 +51,7 @@ function Editor({
     const sources = reference
       ? [
           {
-            id: memory?.sources[0]?.id ?? crypto.randomUUID(),
+            id: memory?.sources[0]?.id,
             reference,
             relationship: memory?.sources[0]?.relationship ?? "supports",
           },

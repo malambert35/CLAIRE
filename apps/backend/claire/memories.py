@@ -18,6 +18,10 @@ from .identity import authenticate
 from .portable import package_memory
 
 
+class SourceInput(Source):
+    id: UUID = Field(default_factory=uuid4)
+
+
 class MemoryInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=200)
@@ -25,7 +29,7 @@ class MemoryInput(BaseModel):
     visibility: Literal["private", "family"] = "private"
     event_date: str | None = Field(default=None, max_length=10)
     verification: Literal["recollection", "verified", "uncertain", "ai_interpretation"] = "recollection"
-    sources: list[Source] = Field(default_factory=list, max_length=10)
+    sources: list[SourceInput] = Field(default_factory=list, max_length=10)
     confirmed: bool = False
 
     @field_validator("event_date")
