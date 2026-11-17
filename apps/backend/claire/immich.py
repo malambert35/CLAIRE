@@ -45,19 +45,6 @@ class ReadInput(BaseModel):
 def immich_router(engine, settings, client_factory=ImmichMCP):
     router = APIRouter(prefix="/api/v1/integrations/immich", tags=["integrations"])
 
-    def admin(request, db):
-        user, _ = authenticate(request, db)
-        if user.role != "family_admin":
-            raise HTTPException(403, "Only family administrators can configure or use this integration")
-        context(db, user.id, user.family_id)
-        return user
-
-    def find(db, user, lock=False):
-        query = select(ImmichConnection).where(
-            ImmichConnection.owner_id == user.id, ImmichConnection.family_id == user.family_id
-        )
-        return db.scalar(query.with_for_update() if lock else query)
-
     def public(row):
         return {
             "endpoint": row.endpoint if row else "",
@@ -112,87 +99,135 @@ def immich_router(engine, settings, client_factory=ImmichMCP):
 
     @router.post("/read")
     def read(body: ReadInput, request: Request):
-        with Session(engine) as db:
-            user = admin(request, db)
-            row = find(db, user)
-            if row is None:
-                raise HTTPException(409, "Save an Immich MCP connection first")
-            if not row.enabled and body.action != "test":
-                raise HTTPException(409, "Immich integration is disabled")
-            endpoint, token, revision = row.endpoint, decrypt(settings, row.token_cipher), row.revision
-            owner, family = user.id, user.family_id
-        try:
-            with client_factory(endpoint, token) as client:
-                if body.action == "test":
-                    result = client.call("immich_ping", {})
-                    if not isinstance(result, dict) or result.get("connected") is not True:
-                        raise MCPError("MCP responded, but did not confirm a working Immich connection")
-                    output = {
-                        "connected": True,
-                        "server": client.server,
-                        "tools": sorted(READ_TOOLS.intersection(client.tools)),
-                    }
-                else:
-                    tool, arguments = {
-                        "recent": ("immich_assets_list", {"size": 25}),
-                        "albums": ("immich_albums_list", {}),
-                        "search": ("immich_search_metadata", {"originalFileName": body.query, "size": 25}),
-                    }[body.action]
-                    raw = client.call(tool, arguments)
-                    if not isinstance(raw, list):
-                        raise MCPError("This Immich server returned an unsupported list format")
-                    # No raw upstream URLs, embedded images, headers or tool instructions reach the UI.
-                    items = []
-                    for item in raw[:50]:
-                        if not isinstance(item, dict):
-                            continue
-
-                        def field(*names, item=item):
-                            return next(
-                                (
-                                    str(item[name])[:300]
-                                    for name in names
-                                    if isinstance(item.get(name), (str, int))
-                                ),
-                                "",
-                            )
-
-                        items.append(
-                            {
-                                "id": field("id"),
-                                "title": field(
-                                    "original_file_name",
-                                    "originalFileName",
-                                    "album_name",
-                                    "albumName",
-                                    "name",
-                                ),
-                                "type": field("type"),
-                                "date": field("file_created_at", "fileCreatedAt", "created_at", "createdAt"),
-                            }
-                        )
-                    output = {"items": items, "limited": len(raw) > 50}
-        except MCPError as error:
-            raise HTTPException(502, str(error)) from None
-        except (ValueError, TypeError, AttributeError, KeyError):
-            # Do not reflect credentials, upstream bodies or returned tool descriptions.
-            raise HTTPException(
-                502,
-                "Immich MCP connection failed or is incompatible. Check /mcp, proxy token, transport and server logs.",
-            ) from None
-        # Recheck session, role and configuration after network I/O; disconnect/revocation fail closed.
-        with Session(engine) as db:
-            user = admin(request, db)
-            current = find(db, user)
-            if (
-                user.id != owner
-                or user.family_id != family
-                or current is None
-                or current.revision != revision
-            ):
-                raise HTTPException(409, "Configuration changed while reading; retry")
-            db.add(Audit(actor_id=user.id, action=f"immich.{body.action}"))
-            db.commit()
-        return output
+        return read_immich(engine, settings, body, request, client_factory)
 
     return router
+
+
+def admin(request, db):
+    user, _ = authenticate(request, db)
+    if user.role != "family_admin":
+        raise HTTPException(403, "Only family administrators can configure or use this integration")
+    context(db, user.id, user.family_id)
+    return user
+
+
+def find(db, user, lock=False):
+    query = select(ImmichConnection).where(
+        ImmichConnection.owner_id == user.id, ImmichConnection.family_id == user.family_id
+    )
+    return db.scalar(query.with_for_update() if lock else query)
+
+
+def read_immich(engine, settings, body, request, client_factory=ImmichMCP):
+    with Session(engine) as db:
+        user = admin(request, db)
+        row = find(db, user)
+        if row is None:
+            raise HTTPException(409, "Save an Immich MCP connection first")
+        if not row.enabled and body.action != "test":
+            raise HTTPException(409, "Immich integration is disabled")
+        endpoint, token, revision = row.endpoint, decrypt(settings, row.token_cipher), row.revision
+        owner, family = user.id, user.family_id
+    try:
+        with client_factory(endpoint, token) as client:
+            if body.action == "test":
+                result = client.call("immich_ping", {})
+                if not isinstance(result, dict) or result.get("connected") is not True:
+                    raise MCPError("MCP responded, but did not confirm a working Immich connection")
+                output = {
+                    "connected": True,
+                    "server": client.server,
+                    "tools": sorted(READ_TOOLS.intersection(client.tools)),
+                }
+            else:
+                tool, arguments = {
+                    "recent": ("immich_assets_list", {"size": 25}),
+                    "albums": ("immich_albums_list", {}),
+                    "search": ("immich_search_metadata", {"originalFileName": body.query, "size": 25}),
+                }[body.action]
+                raw = client.call(tool, arguments)
+                if not isinstance(raw, list):
+                    raise MCPError("This Immich server returned an unsupported list format")
+                # No raw upstream URLs, embedded images, headers or tool instructions reach the UI.
+                items = []
+                for item in raw[:50]:
+                    if not isinstance(item, dict):
+                        continue
+
+                    def field(*names, item=item):
+                        return next(
+                            (
+                                str(item[name])[:300]
+                                for name in names
+                                if isinstance(item.get(name), (str, int))
+                            ),
+                            "",
+                        )
+
+                    items.append(
+                        {
+                            "id": field("id"),
+                            "title": field(
+                                "original_file_name",
+                                "originalFileName",
+                                "album_name",
+                                "albumName",
+                                "name",
+                            ),
+                            "type": field("type"),
+                            "date": field("file_created_at", "fileCreatedAt", "created_at", "createdAt"),
+                        }
+                    )
+                output = {"items": items, "limited": len(raw) > 50}
+    except MCPError as error:
+        raise HTTPException(502, str(error)) from None
+    except (ValueError, TypeError, AttributeError, KeyError):
+        # Do not reflect credentials, upstream bodies or returned tool descriptions.
+        raise HTTPException(
+            502,
+            "Immich MCP connection failed or is incompatible. Check /mcp, proxy token, transport and server logs.",
+        ) from None
+    # Recheck session, role and configuration after network I/O; disconnect/revocation fail closed.
+    with Session(engine) as db:
+        user = admin(request, db)
+        current = find(db, user)
+        if user.id != owner or user.family_id != family or current is None or current.revision != revision:
+            raise HTTPException(409, "Configuration changed while reading; retry")
+        db.add(Audit(actor_id=user.id, action=f"immich.{body.action}"))
+        db.commit()
+    return output
+
+
+def chat_context(engine, settings, request, question):
+    """App-selected reads only; never send chat history or memory excerpts to MCP."""
+    import re
+
+    words = set(re.findall(r"\w+", question.casefold()))
+    if not words.intersection(
+        {"immich", "album", "albums", "photo", "photos", "media", "medias", "média", "médias"}
+    ):
+        return None
+    action = (
+        "recent"
+        if words.intersection({"photo", "photos", "media", "medias", "média", "médias", "recent", "récents"})
+        else "albums"
+    )
+    try:
+        result = read_immich(engine, settings, ReadInput(action=action), request)
+    except HTTPException as error:
+        if error.status_code in {401, 403}:
+            return {"status": "not_authorized"}
+        if error.status_code == 409:
+            return {"status": "disabled_missing_or_changed"}
+        return {"status": "unavailable", "retry": True}
+    return {
+        "status": "available",
+        "source": "Immich MCP",
+        "action": action,
+        "read_only": True,
+        "limited": True,
+        "items": [
+            {key: item[key][:160] for key in ("title", "type", "date")} for item in result["items"][:25]
+        ],
+    }

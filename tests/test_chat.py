@@ -296,3 +296,111 @@ def test_cloud_backed_alias_is_rejected(monkeypatch):
     monkeypatch.setattr(adapter, "models", lambda: ["apparently-local"])
     with pytest.raises(ProviderUnavailable, match="Cloud-backed"):
         adapter.validate_model("apparently-local")
+
+
+def test_immich_chat_grounding_and_admin_isolation(chat_household, monkeypatch):
+    from claire import immich
+
+    _, alice, bob, provider = chat_household
+    calls = []
+
+    class Client:
+        def __init__(self, endpoint, token):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def call(self, tool, arguments):
+            calls.append((tool, arguments))
+            return [{"albumName": "Synthetic garden", "id": "example", "secret_url": "DO_NOT_SEND"}]
+
+    original = immich.read_immich
+    monkeypatch.setattr(immich, "read_immich", lambda *args: original(*args, client_factory=Client))
+    config = {
+        "endpoint": "http://immich.test:5000/mcp",
+        "enabled": True,
+        "expected_revision": 0,
+        "confirmed": True,
+    }
+    assert bob.put("/api/v1/integrations/immich", json=config).status_code == 200
+
+    def ask(client):
+        cid = client.post("/api/v1/conversations", json={"title": "Immich"}).json()["id"]
+        response = client.post(
+            f"/api/v1/conversations/{cid}/messages",
+            json={"content": "As tu acces a mon Immich?", "model": "synthetic-local-model"},
+        )
+        assert "event: done" in response.text
+        return provider.prompts[-1][0]["content"]
+
+    prompt = ask(bob)
+    assert '"status": "available"' in prompt and "Synthetic garden" in prompt
+    assert "DO_NOT_SEND" not in prompt and "immich.test" not in prompt
+    assert calls == [("immich_albums_list", {})]
+    prompt = ask(alice)
+    assert '"status": "not_authorized"' in prompt and "Synthetic garden" not in prompt
+    assert len(calls) == 1
+    config.update(enabled=False, expected_revision=1)
+    assert bob.put("/api/v1/integrations/immich", json=config).status_code == 200
+    assert '"status": "disabled_missing_or_changed"' in ask(bob)
+    assert len(calls) == 1
+    config.update(enabled=True, expected_revision=2)
+    assert bob.put("/api/v1/integrations/immich", json=config).status_code == 200
+
+    def fail(*args):
+        raise immich.MCPError("Synthetic failure")
+
+    monkeypatch.setattr(Client, "call", fail)
+    prompt = ask(bob)
+    assert '"status": "unavailable"' in prompt and "Synthetic garden" not in prompt
+
+
+def test_immich_chat_discards_results_when_disconnected(chat_household, monkeypatch):
+    from claire import immich
+
+    _, _, bob, provider = chat_household
+    assert (
+        bob.put(
+            "/api/v1/integrations/immich",
+            json={
+                "endpoint": "http://immich.test:5000/mcp",
+                "enabled": True,
+                "expected_revision": 0,
+                "confirmed": True,
+            },
+        ).status_code
+        == 200
+    )
+
+    class Client:
+        def __init__(self, *args):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def call(self, *args):
+            assert bob.delete("/api/v1/integrations/immich").status_code == 204
+            return [{"albumName": "Revoked synthetic album"}]
+
+    original = immich.read_immich
+    monkeypatch.setattr(immich, "read_immich", lambda *args: original(*args, client_factory=Client))
+    cid = bob.post("/api/v1/conversations", json={"title": "Revocation"}).json()["id"]
+    response = bob.post(
+        f"/api/v1/conversations/{cid}/messages",
+        json={
+            "content": "Mes albums Immich",
+            "model": "synthetic-local-model",
+        },
+    )
+    assert "event: done" in response.text
+    prompt = provider.prompts[-1][0]["content"]
+    assert "Revoked synthetic album" not in prompt
+    assert '"status": "disabled_missing_or_changed"' in prompt

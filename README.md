@@ -18,7 +18,7 @@ Import a CLAIRE ZIP from the memory list with verification, preview and explicit
 
 **PDF originals and media:** use **Documents and Archives → PDF originals** or **Photos and Media → Import file**. Supported originals: PDF, JPEG, PNG, WebP, MP3, WAV and MP4, up to **25 MiB per file**. Private by default, with explicit family sharing, original download, metadata ZIP export, trash and restoration. Images, audio and video have browser previews/players; PDF files are downloaded. These binary files are **not automatically read by the LLM**. See [files, persistence and limitations](docs/files.md).
 
-**Immich MCP:** a family administrator can configure `barryw/ImmichMCP` from **Integrations**, without editing Unraid environment variables. Enter its reachable `/mcp` address, optionally provide a proxy Bearer token, save and test. Static and gateway modes are supported through Streamable HTTP. Recent media, album lists and filename searches are read-only and restricted to the configuring administrator; no automatic family sharing or chat access. See [setup, credentials and limits](docs/immich.md).
+**Immich MCP:** a family administrator can configure `barryw/ImmichMCP` from **Integrations**, without editing Unraid environment variables. Enter its reachable `/mcp` address, optionally provide a proxy Bearer token, save and test. Static and gateway modes are supported through Streamable HTTP. Recent media, album lists and filename searches are read-only and restricted to the configuring administrator; no automatic family sharing. Chat questions mentioning Immich or albums retrieve album titles; questions mentioning photos or media retrieve recent media metadata for local Ollama. See [setup, credentials and limits](docs/immich.md).
 
 ## Windows local start
 

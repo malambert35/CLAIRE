@@ -14,7 +14,7 @@ Le test est également disponible lorsque la connexion est désactivée. Les aut
 
 Le [serveur barryw/ImmichMCP](https://github.com/barryw/ImmichMCP) utilise `IMMICH_BASE_URL` et `IMMICH_API_KEY` définis dans son propre conteneur. Son [gestionnaire d’authentification](https://github.com/barryw/ImmichMCP/blob/main/ImmichMCP/Client/ImmichAuthHandler.cs) emploie cette même clé pour ses appels Immich. Une connexion CLAIRE ne crée pas une identité Immich distincte et ne réduit pas les droits de cette clé.
 
-**Dans cette version, seul l’administrateur qui configure la connexion peut la consulter et l’utiliser.** Un membre, un lecteur et les autres administrateurs n’y ont pas accès. Les résultats ne sont pas partagés avec la famille ni intégrés au chat. Deux connexions pointant vers un serveur MCP utilisant la même clé peuvent voir la même bibliothèque. L’accès des membres, les permissions par album et les références partagées nécessitent une étape distincte ; ne configurez pas une clé globale en supposant que CLAIRE filtre déjà les photos selon chaque compte Immich.
+**Dans cette version, seul l’administrateur qui configure la connexion peut la consulter et l’utiliser.** Un membre, un lecteur et les autres administrateurs n’y ont pas accès. Les résultats ne sont pas partagés avec la famille et sont accessibles dans le chat privé de cet administrateur. Deux connexions pointant vers un serveur MCP utilisant la même clé peuvent voir la même bibliothèque. L’accès des membres, les permissions par album et les références partagées nécessitent une étape distincte ; ne configurez pas une clé globale en supposant que CLAIRE filtre déjà les photos selon chaque compte Immich.
 
 ## Compatibilité et limites
 
@@ -34,3 +34,11 @@ Le jeton est chiffré avec Fernet en base. La clé persistante est dans `CLAIRE_
 **Supprimer la connexion** efface sa configuration et son jeton en base sans modifier Immich. Les requêtes en cours revérifient la session et la configuration avant de rendre leurs résultats. Aucun port ni conteneur supplémentaire n’est nécessaire côté CLAIRE ; votre conteneur MCP existant reste utilisé.
 
 Test de compatibilité reproductible : `python scripts/immich_compat_smoke.py --image claire:immich-test`, après construction de cette image. Le script crée et supprime son propre réseau et ses conteneurs de test, sans connecter de bibliothèque réelle.
+
+## Chat Ollama
+
+Avec la connexion active, demandez « Quels sont mes albums Immich ? » ou « Montre mes photos recentes ».
+CLAIRE lit les albums ou les medias recents puis transmet au modele local au maximum 25 titres, types et dates.
+La selection se fait par mots-cles dans le message courant, sans envoyer votre historique ou vos souvenirs au MCP.
+Ce n'est ni un index complet ni une analyse visuelle : les images ne sont pas transmises au modele.
+Les erreurs de connexion sont signalees dans le contexte du modele. Les reponses deja sauvegardees restent dans votre conversation privee apres deconnexion d'Immich.

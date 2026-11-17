@@ -4,12 +4,11 @@ import tempfile
 from pathlib import Path
 
 import uvicorn
-from sqlalchemy.orm import Session
-
 from claire.config import Settings
 from claire.db import Base, Family, User
 from claire.identity import passwords
 from claire.main import create_app
+from sqlalchemy.orm import Session
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
