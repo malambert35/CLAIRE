@@ -30,7 +30,7 @@ HTTPServer(('0.0.0.0',8080),Handler).serve_forever()
 CHECK = """
 import time
 from claire.immich_mcp import ImmichMCP, MCPError
-for attempt in range(30):
+for attempt in range(3):
     try:
         with ImmichMCP('http://mcp:5000/mcp') as client:
             assert client.call('immich_ping', {})['connected']
@@ -44,8 +44,9 @@ for attempt in range(30):
             else: raise AssertionError('Write tool allowed')
         print('Real ImmichMCP compatibility: initialization, discovery, ping, assets, albums, search, read-only policy OK')
         break
-    except MCPError:
-        if attempt == 29: raise
+    except MCPError as error:
+        print(str(error), flush=True)
+        if attempt == 2: raise
         time.sleep(1)
 """
 
@@ -60,7 +61,7 @@ def main():
         result = subprocess.run(["docker", *command], capture_output=True, text=True, timeout=180, check=False)
         if check and result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
-        return result.stdout.strip()
+        return (result.stdout + result.stderr).strip()
 
     docker("network", "create", name)
     try:
@@ -124,6 +125,10 @@ def main():
                         CHECK,
                     )
                 )
+            except Exception:
+                print(docker("logs", name + "-api", check=False), flush=True)
+                print(docker("logs", name + "-mcp", check=False), flush=True)
+                raise
             finally:
                 docker("rm", "-f", name + "-mcp", check=False)
     finally:
