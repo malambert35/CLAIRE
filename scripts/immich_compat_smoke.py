@@ -21,7 +21,18 @@ class Handler(BaseHTTPRequestHandler):
         else: self.send_error(404)
     def do_POST(self):
         assert self.headers.get('x-api-key') == 'synthetic-key'
-        body = json.loads(self.rfile.read(int(self.headers.get('Content-Length','0'))))
+        payload = b''
+        if self.headers.get('Transfer-Encoding', '').lower() == 'chunked':
+            while True:
+                size = int(self.rfile.readline().split(b';')[0].strip(), 16)
+                if size == 0:
+                    self.rfile.readline()
+                    break
+                payload += self.rfile.read(size)
+                self.rfile.read(2)
+        else:
+            payload = self.rfile.read(int(self.headers.get('Content-Length', '0')))
+        body = json.loads(payload)
         if body.get('personIds'): assert body['personIds'] == ['22222222-2222-4222-8222-222222222222']
         if self.path == '/api/search/metadata': self.send({'assets':{'items':[{'id':'11111111-1111-4111-8111-111111111111','type':'IMAGE','originalFileName':'synthetic.jpg','fileCreatedAt':'2026-01-01T00:00:00Z','localDateTime':'2026-01-01T00:00:00Z'}],'total':1,'count':1,'nextPage':None}})
         else: self.send_error(405)
