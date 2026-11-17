@@ -42,3 +42,5 @@ New memories are available immediately without indexing or re-saving. Sources in
 ## Immich context
 
 For the configuring administrator, questions mentioning Immich or albums fetch album metadata; photo/media questions fetch recent media metadata. Only a bounded selection of 25 titles, types and dates is supplied to local Ollama. This does not train the model or provide image vision. Disabled, missing, revoked or unavailable connections produce explicit context status instead of invented results. No chat history or memory excerpt is sent to MCP. Previous generated answers remain in private chat history.
+
+Person-tagged media: ask "photos de Camille" or "photos with Camille", using an existing Immich name. CLAIRE resolves visible person labels locally and requests up to 25 associated assets. Ambiguous names require clarification; hidden people are excluded and directory traversal stops at 500 entries. This uses existing labels, not model face recognition. Pronoun-only follow-ups and multi-person intersections are not supported.

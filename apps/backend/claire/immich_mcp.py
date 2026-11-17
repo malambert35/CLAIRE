@@ -8,7 +8,16 @@ from urllib.parse import urlsplit
 
 import httpx
 
-READ_TOOLS = frozenset({"immich_ping", "immich_assets_list", "immich_albums_list", "immich_search_metadata"})
+READ_TOOLS = frozenset(
+    {
+        "immich_ping",
+        "immich_assets_list",
+        "immich_albums_list",
+        "immich_search_metadata",
+        "immich_people_list",
+        "immich_people_assets",
+    }
+)
 BOOTSTRAP = frozenset({"immich_tools_list", "immich_tools_enable"})
 PROTOCOL = "2025-03-26"
 

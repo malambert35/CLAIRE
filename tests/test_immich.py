@@ -11,6 +11,9 @@ from sqlalchemy.orm import Session
 from test_memories import household  # noqa: F401
 
 TOOLS = {
+    "immich_people_list": {"withHidden": {}, "page": {}, "size": {}},
+    "immich_people_assets": {"personId": {}, "page": {}, "size": {}},
+    "immich_people_merge": {"sourceIds": {}, "targetId": {}},
     "immich_ping": {},
     "immich_assets_list": {"size": {}},
     "immich_albums_list": {},
@@ -191,3 +194,39 @@ def test_admin_configuration_secret_isolation_and_disable(household, network, mo
     assert bob.delete(path).status_code == 204
     assert bob.get(path).json()["revision"] == 0
     engine.dispose()
+
+
+@pytest.mark.parametrize("capped", [False, True])
+def test_people_pagination_and_bounded_scan(capped):
+    from claire.immich_people import person_assets
+
+    calls = []
+
+    class Client:
+        def call(self, name, args):
+            calls.append((name, args))
+            if name == "immich_people_assets":
+                assert args["personId"] == "target"
+                return []
+            if args["page"] == 1 or capped:
+                return {
+                    "people": [{"id": str(n), "name": "Unrelated", "isHidden": False} for n in range(100)]
+                }
+            return {"people": [{"id": "target", "name": "Amelie", "isHidden": False}]}
+
+    _, metadata = person_assets(Client(), "photos de Amelie")
+    assert metadata["status"] == ("people_limit_reached" if capped else "available")
+    assert len(calls) == (5 if capped else 3)
+
+
+def test_person_names_normalize_accents_and_boundaries():
+    from claire.immich_people import normalized, person_assets
+
+    assert normalized("AM\u00c9LIE") == "amelie"
+
+    class Client:
+        def call(self, name, args):
+            assert name == "immich_people_list"
+            return {"people": [{"id": "a", "name": "Ann", "isHidden": False}]}
+
+    assert person_assets(Client(), "photos de Anna")[1]["status"] == "person_not_found"

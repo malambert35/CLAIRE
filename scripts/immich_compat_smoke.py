@@ -17,10 +17,12 @@ class Handler(BaseHTTPRequestHandler):
         assert self.headers.get('x-api-key') == 'synthetic-key'
         if self.path == '/api/server/about': self.send({'version': '2.5.0'})
         elif self.path == '/api/albums': self.send([{'id':'11111111-1111-4111-8111-111111111111','albumName':'Synthetic album','createdAt':'2026-01-01T00:00:00Z','updatedAt':'2026-01-01T00:00:00Z','assetCount':1}])
+        elif self.path.startswith('/api/people?'): self.send({'people':[{'id':'22222222-2222-4222-8222-222222222222','name':'Synthetic Person','isHidden':False}], 'total':1, 'hidden':0, 'hasNextPage':False})
         else: self.send_error(404)
     def do_POST(self):
         assert self.headers.get('x-api-key') == 'synthetic-key'
-        self.rfile.read(int(self.headers.get('Content-Length','0')))
+        body = json.loads(self.rfile.read(int(self.headers.get('Content-Length','0'))))
+        if body.get('personIds'): assert body['personIds'] == ['22222222-2222-4222-8222-222222222222']
         if self.path == '/api/search/metadata': self.send({'assets':{'items':[{'id':'11111111-1111-4111-8111-111111111111','type':'IMAGE','originalFileName':'synthetic.jpg','fileCreatedAt':'2026-01-01T00:00:00Z','localDateTime':'2026-01-01T00:00:00Z'}],'total':1,'count':1,'nextPage':None}})
         else: self.send_error(405)
 HTTPServer(('0.0.0.0',8080),Handler).serve_forever()
@@ -35,6 +37,8 @@ for attempt in range(30):
             assert client.call('immich_assets_list', {'size':25})[0]['originalFileName']=='synthetic.jpg'
             assert client.call('immich_albums_list', {})[0]['albumName']=='Synthetic album'
             assert client.call('immich_search_metadata', {'originalFileName':'synthetic','size':25})[0]['originalFileName']=='synthetic.jpg'
+            assert client.call('immich_people_list', {'withHidden':False,'page':1,'size':100})['people'][0]['name']=='Synthetic Person'
+            assert client.call('immich_people_assets', {'personId':'22222222-2222-4222-8222-222222222222','page':1,'size':25})[0]['originalFileName']=='synthetic.jpg'
             try: client.call('immich_assets_delete', {'ids':[]})
             except MCPError: pass
             else: raise AssertionError('Write tool allowed')

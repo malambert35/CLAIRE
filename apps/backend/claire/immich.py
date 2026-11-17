@@ -1,5 +1,6 @@
 """Admin-only saved Immich connection and explicit read-only operations."""
 
+import re
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -12,6 +13,7 @@ from .chat import context
 from .db import Audit, ImmichConnection
 from .identity import authenticate
 from .immich_mcp import READ_TOOLS, ImmichMCP, MCPError, endpoint_url
+from .immich_people import normalized, person_assets
 from .secrets import decrypt, encrypt
 
 
@@ -38,8 +40,8 @@ class ConnectionInput(BaseModel):
 
 class ReadInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    action: Literal["test", "recent", "albums", "search"]
-    query: str = Field(default="", max_length=200)
+    action: Literal["test", "recent", "albums", "search", "person"]
+    query: str = Field(default="", max_length=4000)
 
 
 def immich_router(engine, settings, client_factory=ImmichMCP):
@@ -141,12 +143,16 @@ def read_immich(engine, settings, body, request, client_factory=ImmichMCP):
                     "tools": sorted(READ_TOOLS.intersection(client.tools)),
                 }
             else:
-                tool, arguments = {
-                    "recent": ("immich_assets_list", {"size": 25}),
-                    "albums": ("immich_albums_list", {}),
-                    "search": ("immich_search_metadata", {"originalFileName": body.query, "size": 25}),
-                }[body.action]
-                raw = client.call(tool, arguments)
+                metadata = {}
+                if body.action == "person":
+                    raw, metadata = person_assets(client, body.query)
+                else:
+                    tool, arguments = {
+                        "recent": ("immich_assets_list", {"size": 25}),
+                        "albums": ("immich_albums_list", {}),
+                        "search": ("immich_search_metadata", {"originalFileName": body.query, "size": 25}),
+                    }[body.action]
+                    raw = client.call(tool, arguments)
                 if not isinstance(raw, list):
                     raise MCPError("This Immich server returned an unsupported list format")
                 # No raw upstream URLs, embedded images, headers or tool instructions reach the UI.
@@ -179,7 +185,7 @@ def read_immich(engine, settings, body, request, client_factory=ImmichMCP):
                             "date": field("file_created_at", "fileCreatedAt", "created_at", "createdAt"),
                         }
                     )
-                output = {"items": items, "limited": len(raw) > 50}
+                output = {"items": items, "limited": len(raw) > 50, **metadata}
     except MCPError as error:
         raise HTTPException(502, str(error)) from None
     except (ValueError, TypeError, AttributeError, KeyError):
@@ -201,11 +207,28 @@ def read_immich(engine, settings, body, request, client_factory=ImmichMCP):
 
 def chat_context(engine, settings, request, question):
     """App-selected reads only; never send chat history or memory excerpts to MCP."""
-    import re
-
     words = set(re.findall(r"\w+", question.casefold()))
     if not words.intersection(
-        {"immich", "album", "albums", "photo", "photos", "media", "medias", "média", "médias"}
+        {
+            "immich",
+            "album",
+            "albums",
+            "photo",
+            "photos",
+            "image",
+            "images",
+            "picture",
+            "pictures",
+            "media",
+            "medias",
+            "média",
+            "médias",
+            "personne",
+            "personnes",
+            "gens",
+            "people",
+            "visages",
+        }
     ):
         return None
     action = (
@@ -213,8 +236,13 @@ def chat_context(engine, settings, request, question):
         if words.intersection({"photo", "photos", "media", "medias", "média", "médias", "recent", "récents"})
         else "albums"
     )
+    query = normalized(question)
+    if words.intersection({"personne", "personnes", "gens", "people", "visages"}) or re.search(
+        r"\b(?:photos?|images?|pictures?|medias?|immich)\s+(?:de|du|d|avec|of|with)\b", query
+    ):
+        action = "person"
     try:
-        result = read_immich(engine, settings, ReadInput(action=action), request)
+        result = read_immich(engine, settings, ReadInput(action=action, query=question), request)
     except HTTPException as error:
         if error.status_code in {401, 403}:
             return {"status": "not_authorized"}
@@ -222,7 +250,8 @@ def chat_context(engine, settings, request, question):
             return {"status": "disabled_missing_or_changed"}
         return {"status": "unavailable", "retry": True}
     return {
-        "status": "available",
+        "status": result.get("status", "available"),
+        **{key: result[key] for key in ("person", "candidates", "identity_source") if key in result},
         "source": "Immich MCP",
         "action": action,
         "read_only": True,

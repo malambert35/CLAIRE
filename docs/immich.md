@@ -20,7 +20,7 @@ Le [serveur barryw/ImmichMCP](https://github.com/barryw/ImmichMCP) utilise `IMMI
 
 - Transport pris en charge : **Streamable HTTP**, endpoint `/mcp`, réponses JSON et SSE, sessions MCP. Pas de lancement `stdio`, pas d’ancien transport HTTP+SSE, pas d’OAuth interactif.
 - Modes **static** et **gateway** validés avec l’image réelle `ghcr.io/barryw/immichmcp`, digest `sha256:45acbcd7fb7ab766e1edad00cb5d3a2b849f1f6ecbadeb14771d1413bb241187`, sur une API Immich synthétique. Le tag `latest` peut évoluer ; le test de connexion indique les incompatibilités.
-- Outils autorisés : `immich_ping`, `immich_assets_list`, `immich_albums_list`, `immich_search_metadata`. Le mode gateway active uniquement ces noms après découverte. Aucune catégorie entière ni outil de modification, téléchargement, suppression ou partage n’est activé.
+- Outils autorisés : `immich_ping`, `immich_assets_list`, `immich_albums_list`, `immich_search_metadata`, `immich_people_list`, `immich_people_assets`. Le mode gateway active uniquement ces noms après découverte. Aucune catégorie entière ni outil de modification, téléchargement, suppression ou partage n’est activé.
 - Les listes sont bornées : 25 médias par requête, au plus 50 albums affichés. La recherche porte sur le nom du fichier, pas sur la reconnaissance d’images. Pas encore de miniatures distantes, de copie automatique, de navigation dans les albums ou d’utilisation par le LLM.
 - Les descriptions d’outils ne sont jamais exécutées comme instructions. Les résultats sont réduits aux noms, identifiants, types et dates, puis affichés comme texte. Les URL retournées ne sont ni suivies ni intégrées dans la page.
 - Les redirections sont refusées ; utilisez l’adresse finale. HTTP est réservé aux adresses privées. HTTPS public est accepté avec vérification normale du certificat. Les adresses loopback, link-local, multicast et réservées sont bloquées ; la résolution DNS est vérifiée puis fixée pour la connexion.
@@ -42,3 +42,13 @@ CLAIRE lit les albums ou les medias recents puis transmet au modele local au max
 La selection se fait par mots-cles dans le message courant, sans envoyer votre historique ou vos souvenirs au MCP.
 Ce n'est ni un index complet ni une analyse visuelle : les images ne sont pas transmises au modele.
 Les erreurs de connexion sont signalees dans le contexte du modele. Les reponses deja sauvegardees restent dans votre conversation privee apres deconnexion d'Immich.
+
+### Photos par personne identifiee
+
+Demandez **« Montre les photos de Camille »**, en utilisant le nom enregistre dans Immich.
+CLAIRE consulte les personnes visibles, resout le nom (sans distinction de casse ou d'accents), puis lit jusqu'a 25 medias associes a cette personne.
+Un prenom peut suffire s'il correspond a une seule personne ; en cas d'homonymes, le chat demande de preciser le nom complet. Les demandes avec plusieurs personnes ne calculent pas une intersection : elles demandent aussi une precision.
+Le parcours est borne a 5 pages de 100 personnes. Si cette limite est atteinte, aucune personne n'est choisie automatiquement.
+Les personnes masquees sont exclues. Une personne absente, une limite atteinte ou un outil MCP indisponible ne declenche jamais un remplacement par des photos recentes sans rapport.
+Les identites proviennent des etiquettes Immich ; aucune reconnaissance faciale supplementaire ni verification d'identite n'est effectuee par Ollama.
+La demande doit contenir le nom et un terme comme « photos de » ou « photos avec » ; les relances par pronom seul ne sont pas resolues.

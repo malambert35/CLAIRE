@@ -404,3 +404,73 @@ def test_immich_chat_discards_results_when_disconnected(chat_household, monkeypa
     prompt = provider.prompts[-1][0]["content"]
     assert "Revoked synthetic album" not in prompt
     assert '"status": "disabled_missing_or_changed"' in prompt
+
+
+@pytest.mark.parametrize(
+    "question,people,status",
+    [
+        ("Photos de Camille", [{"id": "p1", "name": "Camille", "isHidden": False}], "available"),
+        ("Photos de CAMILLE", [{"id": "p1", "name": "Camille Test", "isHidden": False}], "available"),
+        (
+            "Photos de Camille",
+            [
+                {"id": "p1", "name": "Camille Test", "isHidden": False},
+                {"id": "p2", "name": "Camille Autre", "isHidden": False},
+            ],
+            "ambiguous_person",
+        ),
+        ("Photos de Camille", [{"id": "p1", "name": "Camille", "isHidden": True}], "person_not_found"),
+        ("Photos de Camille", [], "person_not_found"),
+    ],
+)
+def test_chat_immich_person_filter(chat_household, monkeypatch, question, people, status):
+    from claire import immich
+
+    _, alice, bob, provider = chat_household
+    calls = []
+
+    class Client:
+        def __init__(self, *args):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def call(self, name, arguments):
+            calls.append((name, arguments))
+            if name == "immich_people_list":
+                assert arguments == {"withHidden": False, "page": 1, "size": 100}
+                return {"people": people}
+            assert name == "immich_people_assets"
+            assert arguments == {"personId": "p1", "page": 1, "size": 25}
+            return [{"originalFileName": "person-match.jpg", "type": "IMAGE"}]
+
+    original = immich.read_immich
+    monkeypatch.setattr(immich, "read_immich", lambda *args: original(*args, client_factory=Client))
+    assert (
+        bob.put(
+            "/api/v1/integrations/immich",
+            json={
+                "endpoint": "http://immich.test:5000/mcp",
+                "enabled": True,
+                "expected_revision": 0,
+                "confirmed": True,
+            },
+        ).status_code
+        == 200
+    )
+    for client in (bob, alice):
+        cid = client.post("/api/v1/conversations", json={"title": "Person lookup"}).json()["id"]
+        response = client.post(
+            f"/api/v1/conversations/{cid}/messages",
+            json={"content": question, "model": "synthetic-local-model"},
+        )
+        assert "event: done" in response.text
+        prompt = provider.prompts[-1][0]["content"]
+        expected = status if client is bob else "not_authorized"
+        assert f'"status": "{expected}"' in prompt
+        assert ("person-match.jpg" in prompt) == (client is bob and status == "available")
+    assert len(calls) == (2 if status == "available" else 1)
