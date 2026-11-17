@@ -90,11 +90,14 @@ class FakeMCP:
 
 @pytest.fixture
 def network(monkeypatch):
-    monkeypatch.setattr(
-        socket,
-        "getaddrinfo",
-        lambda *args, **kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.20", 5000))],
-    )
+    resolve = socket.getaddrinfo
+
+    def lookup(host, *args, **kwargs):
+        if host == "immich.test":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.20", 5000))]
+        return resolve(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", lookup)
 
 
 @pytest.mark.parametrize("gateway,sse", [(False, False), (True, True)])
